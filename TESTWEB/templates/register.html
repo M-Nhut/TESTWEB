@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="flex items-center justify-center min-h-[80vh] py-8">
+    <div class="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-8 pt-8 pb-6 border-b border-slate-100">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Đăng ký tài khoản</h1>
+            <p class="text-sm text-slate-500 mt-1">Vui lòng điền đầy đủ thông tin bên dưới để tạo tài khoản mới.</p>
+        </div>
+
+        <div class="p-8">
+            <form method="POST" class="space-y-6">
+                {{ form.hidden_tag() }}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Mã số <span class="text-red-500">*</span></label>
+                        {{ form.user_code(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                        {% for error in form.user_code.errors %}<p class="text-[0.8rem] font-medium text-red-500">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.role.label.text }}</label>
+                        {{ form.role(class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.fullname.label.text }}</label>
+                    {{ form.fullname(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    {% for error in form.fullname.errors %}<p class="text-[0.8rem] font-medium text-red-500">{{ error }}</p>{% endfor %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.phone.label.text }}</label>
+                        {{ form.phone(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.parent_phone.label.text }}</label>
+                        {{ form.parent_phone(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.position.label.text }}</label>
+                    {{ form.position(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors", placeholder="Ví dụ: Lớp 9, Giáo viên Toán...") }}
+                </div>
+
+                <div class="border-t border-slate-200 my-6"></div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.username.label.text }}</label>
+                    {{ form.username(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    {% for error in form.username.errors %}<p class="text-[0.8rem] font-medium text-red-500">{{ error }}</p>{% endfor %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.password.label.text }}</label>
+                        {{ form.password(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">{{ form.confirm_password.label.text }}</label>
+                        {{ form.confirm_password(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors") }}
+                    </div>
+                </div>
+
+                <button type="submit" class="inline-flex w-full items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2 mt-4">
+                    Tạo tài khoản
+                </button>
+            </form>
+        </div>
+        
+        <div class="bg-slate-50 px-8 py-4 border-t border-slate-200 text-center">
+            <p class="text-sm text-slate-600">
+                Đã có tài khoản? <a href="{{ url_for('login') }}" class="font-semibold text-slate-900 hover:underline">Đăng nhập ngay</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

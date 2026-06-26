@@ -1,0 +1,220 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-6" id="examTakeContainer">
+    <!-- Question Panel -->
+    <div class="w-full lg:w-3/4">
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-6">
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50">
+                <span class="inline-flex items-center rounded-md bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 mb-2">
+                    {{ exam.course.course_name }}
+                </span>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ exam.title }}</h1>
+            </div>
+            
+            <form method="post" id="examTakeForm" class="p-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="space-y-8">
+                    {% for q in questions %}
+                    <div class="question-item scroll-mt-24" id="q-box-{{ loop.index }}">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="inline-flex items-center justify-center rounded-md bg-slate-900 px-2.5 py-1 text-sm font-medium text-white shadow-sm">
+                                Câu {{ loop.index }} / {{ exam.question_count }}
+                            </span>
+                            <span class="text-sm font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">{{ q.points }} điểm</span>
+                        </div>
+                        
+                        <h4 class="text-lg font-medium text-slate-900 mb-4 leading-relaxed">{{ q.question_text }}</h4>
+                        
+                        <div class="space-y-3 pl-2">
+                            {% for a in q._shuffled_answers %}
+                            <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors group has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/50">
+                                <div class="flex items-center h-6">
+                                    {% if q.question_type == 'multi' %}
+                                    <input class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600 choice-input transition-all mt-0.5" type="checkbox" name="q_{{ q.id }}" id="ans-{{ a.id }}" value="{{ a.id }}" data-q-idx="{{ loop.parent.index }}">
+                                    {% else %}
+                                    <input class="h-4 w-4 border-slate-300 text-blue-600 focus:ring-blue-600 choice-input transition-all mt-0.5" type="radio" name="q_{{ q.id }}" id="ans-{{ a.id }}" value="{{ a.id }}" data-q-idx="{{ loop.parent.index }}" required>
+                                    {% endif %}
+                                </div>
+                                <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900 leading-tight pt-0.5 select-none">{{ a.answer_text }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if not loop.last %}
+                    <hr class="border-slate-100 my-8">
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center bg-slate-50 p-4 rounded-lg">
+                    <button type="button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 border border-slate-200 bg-white hover:bg-slate-100 text-slate-900 h-11 px-6" onclick="window.history.back()">
+                        Hủy bỏ
+                    </button>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 bg-green-600 text-white hover:bg-green-700 h-11 px-8 shadow-sm" id="submitExamBtn">
+                        <i data-lucide="send" class="w-4 h-4 mr-2"></i> Nộp bài thi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Floating status sidebar -->
+    <div class="w-full lg:w-1/4">
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm sticky top-[85px] z-40 overflow-hidden">
+            <div class="p-6 bg-slate-900 text-center">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Thời gian còn lại</div>
+                <div id="countdownTimer" class="text-4xl font-mono font-bold text-white tracking-wider">00:00</div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 mt-4 overflow-hidden">
+                    <div id="timerProgress" class="bg-blue-500 h-1.5 rounded-full transition-all duration-1000 ease-linear" style="width: 100%;"></div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-b border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-900 flex items-center">
+                    <i data-lucide="list-todo" class="w-4 h-4 mr-2 text-slate-500"></i> Danh sách câu hỏi
+                </h3>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap gap-2 mb-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {% for q in questions %}
+                    <button type="button" class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors w-10 h-10 shrink-0 q-map-btn data-[answered=true]:bg-blue-600 data-[answered=true]:text-white data-[answered=true]:border-blue-600 data-[answered=true]:hover:bg-blue-700" 
+                            id="q-map-{{ loop.index }}" onclick="scrollToQuestion({{ loop.index }})">
+                        {{ loop.index }}
+                    </button>
+                    {% endfor %}
+                </div>
+                
+                <div class="rounded-md bg-blue-50 p-3 border border-blue-100">
+                    <div class="flex">
+                        <div class="shrink-0">
+                            <i data-lucide="info" class="h-4 w-4 text-blue-600"></i>
+                        </div>
+                        <div class="ml-3 flex-1 md:flex md:justify-between">
+                            <p class="text-xs text-blue-700 leading-relaxed">
+                                Hệ thống tự động lưu lựa chọn. Khi hết giờ, bài làm sẽ tự động nộp.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const examDurationMinutes = {{ exam.duration_minutes }};
+let timeRemainingSeconds = examDurationMinutes * 60;
+const totalSeconds = timeRemainingSeconds;
+let timerInterval;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Start countdown timer
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+        timeRemainingSeconds--;
+        updateTimerDisplay();
+        
+        if (timeRemainingSeconds <= 0) {
+            clearInterval(timerInterval);
+            autoSubmitExam();
+        }
+    }, 1000);
+    
+    // Bind selection changes to update navigation map
+    document.querySelectorAll('.choice-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const qIdx = e.target.getAttribute('data-q-idx');
+            updateQuestionMap(qIdx);
+        });
+    });
+    
+    // Handle form submit confirm
+    const form = document.getElementById('examTakeForm');
+    form.addEventListener('submit', (e) => {
+        const confirmSubmit = confirm('Bạn chắc chắn muốn nộp bài thi? Vui lòng kiểm tra lại tất cả đáp án trước khi nộp.');
+        if (!confirmSubmit) {
+            e.preventDefault();
+        } else {
+            clearInterval(timerInterval);
+        }
+    });
+});
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timeRemainingSeconds / 60);
+    const seconds = timeRemainingSeconds % 60;
+    
+    const timerDisplay = document.getElementById('countdownTimer');
+    timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        
+    const percentage = (timeRemainingSeconds / totalSeconds) * 100;
+    const progressBar = document.getElementById('timerProgress');
+    progressBar.style.width = `${percentage}%`;
+    
+    // Color coding based on remaining time
+    if (percentage <= 10) {
+        progressBar.className = "bg-red-500 h-1.5 rounded-full transition-all duration-1000 ease-linear";
+        timerDisplay.className = "text-4xl font-mono font-bold text-red-400 tracking-wider text-flash";
+    } else if (percentage <= 30) {
+        progressBar.className = "bg-yellow-500 h-1.5 rounded-full transition-all duration-1000 ease-linear";
+        timerDisplay.className = "text-4xl font-mono font-bold text-yellow-400 tracking-wider";
+    }
+}
+
+function updateQuestionMap(qIdx) {
+    const btn = document.getElementById(`q-map-${qIdx}`);
+    const qBox = document.getElementById(`q-box-${qIdx}`);
+    
+    let answered = false;
+    qBox.querySelectorAll('.choice-input').forEach(input => {
+        if (input.checked) answered = true;
+    });
+    
+    if (answered) {
+        btn.setAttribute('data-answered', 'true');
+    } else {
+        btn.setAttribute('data-answered', 'false');
+    }
+}
+
+function scrollToQuestion(qIdx) {
+    const qBox = document.getElementById(`q-box-${qIdx}`);
+    if (qBox) {
+        // Offset for sticky header/timer
+        const yOffset = -100; 
+        const y = qBox.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({top: y, behavior: 'smooth'});
+    }
+}
+
+function autoSubmitExam() {
+    alert('Hết giờ làm bài! Hệ thống đang tự động nộp bài của bạn.');
+    const form = document.getElementById('examTakeForm');
+    // Remove confirm check on submit
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    newForm.submit();
+}
+</script>
+
+<style>
+.text-flash {
+    animation: flash 1s infinite alternate;
+}
+@keyframes flash {
+    from { opacity: 1; }
+    to { opacity: 0.5; color: #f87171; }
+}
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

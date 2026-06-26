@@ -1,0 +1,36 @@
+<div class="space-y-2 col-span-1 sm:col-span-2">
+    <label class="text-sm font-medium leading-none text-slate-900">Khóa học</label>
+    <select name="course_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" required>
+        {% for c in courses %}
+        <option value="{{ c.id }}" {% if schedule is defined and schedule and schedule.course_id == c.id %}selected{% endif %}>{{ c.course_name }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div class="space-y-2 col-span-1 sm:col-span-2">
+    <label class="text-sm font-medium leading-none text-slate-900">Giáo viên</label>
+    <select name="teacher_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" required>
+        {% for t in teachers %}
+        <option value="{{ t.id }}" {% if schedule is defined and schedule and schedule.teacher_id == t.id %}selected{% endif %}>{{ t.fullname }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div class="space-y-2">
+    <label class="text-sm font-medium leading-none text-slate-900">Phòng</label>
+    <input name="classroom" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ schedule.classroom if schedule is defined and schedule else '' }}" required>
+</div>
+<div class="space-y-2">
+    <label class="text-sm font-medium leading-none text-slate-900">Thứ</label>
+    <select name="weekday" class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors">
+        {% for value, label in WEEKDAYS.items() %}
+        <option value="{{ value }}" {% if schedule is defined and schedule and schedule.weekday == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div class="space-y-2">
+    <label class="text-sm font-medium leading-none text-slate-900">Bắt đầu</label>
+    <input type="time" name="start_time" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ schedule.start_time.strftime('%H:%M') if schedule is defined and schedule else '18:00' }}" required>
+</div>
+<div class="space-y-2">
+    <label class="text-sm font-medium leading-none text-slate-900">Kết thúc</label>
+    <input type="time" name="end_time" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ schedule.end_time.strftime('%H:%M') if schedule is defined and schedule else '19:30' }}" required>
+</div>

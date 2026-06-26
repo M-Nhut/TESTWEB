@@ -1,0 +1,411 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ 'Cập nhật đề thi' if exam else 'Tạo đề thi mới' }}</h1>
+        <p class="text-sm text-slate-500 mt-1">Nhập thông tin đề thi và thiết lập câu hỏi.</p>
+    </div>
+    <a href="{{ url_for('exam_list') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4">
+        <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Danh sách đề thi
+    </a>
+</div>
+
+<form method="post" id="examForm" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Left: General config -->
+        <div class="w-full lg:w-1/3 space-y-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 class="text-lg font-semibold text-slate-900 border-b border-slate-100 pb-4 mb-4">Cấu hình chung</h2>
+                
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-900">Tiêu đề đề thi <span class="text-red-500">*</span></label>
+                        <input name="title" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ exam.title if exam else '' }}" required placeholder="Ví dụ: Kiểm tra giữa kỳ Toán 9">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-900">Khóa học <span class="text-red-500">*</span></label>
+                        <select name="course_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" required>
+                            <option value="">-- Chọn khóa học --</option>
+                            {% for c in courses %}
+                            <option value="{{ c.id }}" {% if exam and exam.course_id == c.id %}selected{% endif %}>{{ c.course_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-900">Thời gian làm bài (Phút) <span class="text-red-500">*</span></label>
+                        <input name="duration_minutes" type="number" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ exam.duration_minutes if exam else 30 }}" required min="1">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-900">Thời gian bắt đầu <span class="text-slate-400 font-normal">(Không bắt buộc)</span></label>
+                        <input name="start_time" type="datetime-local" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ exam.start_time.strftime('%Y-%m-%dT%H:%M') if exam and exam.start_time else '' }}">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-900">Thời gian kết thúc <span class="text-slate-400 font-normal">(Không bắt buộc)</span></label>
+                        <input name="end_time" type="datetime-local" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{{ exam.end_time.strftime('%Y-%m-%dT%H:%M') if exam and exam.end_time else '' }}">
+                    </div>
+                </div>
+                
+                <hr class="my-6 border-slate-100">
+                
+                <div class="space-y-4">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" name="shuffle_questions" value="1" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" {% if not exam or exam.shuffle_questions %}checked{% endif %}>
+                        <span class="text-sm font-medium text-slate-900">Tráo câu hỏi ngẫu nhiên</span>
+                    </label>
+                    
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" name="shuffle_answers" value="1" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" {% if not exam or exam.shuffle_answers %}checked{% endif %}>
+                        <span class="text-sm font-medium text-slate-900">Tráo đáp án ngẫu nhiên</span>
+                    </label>
+                    
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" name="is_active" value="1" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" {% if not exam or exam.is_active %}checked{% endif %}>
+                        <span class="text-sm font-medium text-slate-900">Mở đề thi ngay lập tức</span>
+                    </label>
+                </div>
+                
+                <div class="mt-8">
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-11 px-8">
+                        <i data-lucide="save" class="w-4 h-4 mr-2"></i> Lưu đề thi
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right: Questions and answers -->
+        <div class="w-full lg:w-2/3">
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm min-h-full">
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                    <h2 class="text-lg font-semibold text-slate-900">Bộ câu hỏi</h2>
+                    <div class="flex gap-2">
+                        <button type="button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-slate-200 bg-white hover:bg-slate-100 h-9 px-4" onclick="document.getElementById('importPanel').classList.toggle('hidden')">
+                            <i data-lucide="upload" class="w-4 h-4 mr-2"></i> Import
+                        </button>
+                        <button type="button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-slate-200 bg-slate-900 text-white hover:bg-slate-900/90 h-9 px-4" id="addQuestionBtn">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Thêm câu hỏi
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Import Panel -->
+                <div id="importPanel" class="hidden mb-6 p-5 border border-slate-200 bg-slate-50 rounded-lg">
+                    <h3 class="text-sm font-semibold mb-3">Import câu hỏi</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-700 block mb-1">Từ văn bản (Bắt đầu mỗi câu bằng "Câu X:", các đáp án bắt đầu bằng A., B., C., D. Thêm "*" để đánh dấu đáp án đúng)</label>
+                            <textarea id="importTextarea" class="w-full h-32 rounded-md border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 shadow-sm" placeholder="Câu 1: Thủ đô của Việt Nam là gì?
+*A. Hà Nội
+B. TP.HCM
+C. Đà Nẵng
+D. Hải Phòng"></textarea>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1">
+                                <label class="text-xs font-medium text-slate-700 block mb-1">Hoặc tải file lên (.txt)</label>
+                                <input type="file" id="importFile" accept=".txt" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800 transition-colors cursor-pointer">
+                            </div>
+                            <button type="button" id="processImportBtn" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-slate-900 text-white hover:bg-slate-900/90 h-10 px-6 self-end">
+                                Xử lý Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="questionsContainer" class="space-y-6">
+                    <!-- Questions will render here dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Templates for dynamic creation using JS -->
+<script id="questionTemplate" type="text/template">
+    <div class="question-block rounded-lg border border-slate-200 bg-slate-50 p-5 relative transition-all hover:border-slate-300" data-q-idx="{q_idx}">
+        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+            <div class="flex-1 flex gap-3 items-start">
+                <span class="inline-flex items-center justify-center rounded-md bg-slate-900 px-2.5 py-0.5 text-sm font-medium text-white shrink-0 mt-1 shadow-sm question-number-badge">
+                    Câu {q_num}
+                </span>
+                <input name="question_{q_idx}_text" class="flex min-h-[40px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors shadow-sm font-medium" required placeholder="Nhập câu hỏi..." value="{q_text}">
+            </div>
+            <button type="button" class="inline-flex items-center justify-center rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 h-10 w-10 shrink-0 transition-colors remove-q-btn">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 p-4 rounded-md bg-white border border-slate-100 shadow-sm">
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Loại câu hỏi</label>
+                <select name="question_{q_idx}_type" class="flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors q-type-select" data-q-idx="{q_idx}">
+                    <option value="single" {sel_single}>Trắc nghiệm (1 đáp án)</option>
+                    <option value="multi" {sel_multi}>Trắc nghiệm (Nhiều đáp án)</option>
+                    <option value="truefalse" {sel_truefalse}>Đúng / Sai</option>
+                </select>
+            </div>
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Điểm số</label>
+                <input name="question_{q_idx}_points" type="number" step="0.25" class="flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" value="{q_points}" required min="0.25">
+            </div>
+        </div>
+        
+        <div class="answers-container bg-white p-4 rounded-md border border-slate-100 shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <label class="text-sm font-semibold text-slate-900">Danh sách đáp án</label>
+                <button type="button" class="inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors border border-slate-200 bg-white hover:bg-slate-100 h-7 px-2.5 add-ans-btn" data-q-idx="{q_idx}">
+                    <i data-lucide="plus" class="w-3 h-3 mr-1"></i> Thêm đáp án
+                </button>
+            </div>
+            <div class="answers-list space-y-2" data-q-idx="{q_idx}">
+                <!-- Answers render here -->
+            </div>
+        </div>
+    </div>
+</script>
+
+<!-- Data for JS: stored in a text/template block to avoid IDE JS parsing errors -->
+<script id="exam-data-template" type="text/template">
+[
+    {% if exam %}
+        {% for q in exam.questions %}
+        {
+            "text": {{ q.question_text | tojson }},
+            "type": "{{ q.question_type }}",
+            "points": {{ q.points }},
+            "answers": [
+                {% for a in q.answers %}
+                {
+                    "text": {{ a.answer_text | tojson }},
+                    "is_correct": {{ 'true' if a.is_correct else 'false' }}
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ]
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    {% endif %}
+]
+</script>
+
+<script>
+let questionCount = 0;
+
+// Initialize data from Jinja
+let initialData = [];
+const dataTemplate = document.getElementById('exam-data-template');
+if (dataTemplate && dataTemplate.textContent.trim()) {
+    try {
+        initialData = JSON.parse(dataTemplate.textContent.trim());
+    } catch (e) {
+        console.error("Error parsing initial data", e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (initialData.length > 0) {
+        initialData.forEach((q, idx) => {
+            addQuestion(q.text, q.type, q.points, q.answers);
+        });
+    } else {
+        // Add 1 default question
+        addQuestion('', 'single', 1.0, []);
+    }
+    
+    document.getElementById('addQuestionBtn').addEventListener('click', () => {
+        addQuestion('', 'single', 1.0, []);
+    });
+
+    document.getElementById('processImportBtn').addEventListener('click', () => {
+        const text = document.getElementById('importTextarea').value;
+        if (text.trim()) {
+            parseAndImportQuestions(text);
+            document.getElementById('importTextarea').value = '';
+            document.getElementById('importPanel').classList.add('hidden');
+        } else {
+            const fileInput = document.getElementById('importFile');
+            if (fileInput.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    parseAndImportQuestions(e.target.result);
+                    fileInput.value = '';
+                    document.getElementById('importPanel').classList.add('hidden');
+                };
+                reader.readAsText(fileInput.files[0]);
+            } else {
+                alert('Vui lòng nhập văn bản hoặc chọn file (.txt) để import.');
+            }
+        }
+    });
+});
+
+function parseAndImportQuestions(text) {
+    const blocks = text.split(/(?=Câu\s*\d+|Q\d+|Question\s*\d+)/i).filter(b => b.trim());
+    if (blocks.length === 0) {
+        const lines = text.split(/\n\s*\n/).filter(b => b.trim());
+        lines.forEach(block => addQuestion(block.trim(), 'single', 1.0, []));
+        return;
+    }
+
+    // Remove the default empty question if it's the only one
+    const container = document.getElementById('questionsContainer');
+    if (container.children.length === 1 && !container.querySelector('input[type="text"]').value) {
+        container.innerHTML = '';
+        questionCount = 0;
+    }
+
+    blocks.forEach(block => {
+        const lines = block.split('\n').filter(l => l.trim());
+        if (lines.length > 0) {
+            let qText = lines[0].replace(/^(Câu\s*\d+|Q\d+|Question\s*\d+)[\.:\-]?\s*/i, '').trim();
+            let answers = [];
+            for (let i = 1; i < lines.length; i++) {
+                let ansText = lines[i].replace(/^[A-D][\.:\-]\s*/i, '').trim();
+                if (ansText) {
+                    let isCorrect = lines[i].includes('*') || lines[i].toLowerCase().includes('(đúng)');
+                    ansText = ansText.replace(/\*/g, '').replace(/\(đúng\)/ig, '').trim();
+                    answers.push({ text: ansText, is_correct: isCorrect });
+                }
+            }
+            
+            if (answers.length > 0 && !answers.some(a => a.is_correct)) {
+                answers[0].is_correct = true;
+            }
+            addQuestion(qText, 'single', 1.0, answers);
+        }
+    });
+}
+
+function addQuestion(text = '', type = 'single', points = 1.0, answers = []) {
+    const qIdx = questionCount++;
+    const container = document.getElementById('questionsContainer');
+    
+    let html = document.getElementById('questionTemplate').innerHTML
+        .replace(/{q_idx}/g, qIdx)
+        .replace(/{q_num}/g, qIdx + 1)
+        .replace('{q_text}', escapeHtmlAttr(text))
+        .replace('{q_points}', points)
+        .replace('{sel_single}', type === 'single' ? 'selected' : '')
+        .replace('{sel_multi}', type === 'multi' ? 'selected' : '')
+        .replace('{sel_truefalse}', type === 'truefalse' ? 'selected' : '');
+        
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const block = div.firstElementChild;
+    container.appendChild(block);
+    
+    // Bind remove button
+    block.querySelector('.remove-q-btn').addEventListener('click', () => {
+        block.remove();
+        renumberQuestions();
+    });
+    
+    // Bind type select change
+    const typeSelect = block.querySelector('.q-type-select');
+    typeSelect.addEventListener('change', (e) => {
+        setupAnswers(block, qIdx, e.target.value);
+    });
+    
+    // Bind add answer button
+    block.querySelector('.add-ans-btn').addEventListener('click', () => {
+        addAnswerRow(block, qIdx, typeSelect.value, '', false);
+    });
+    
+    // Setup initial answers
+    setupAnswers(block, qIdx, type, answers);
+    
+    // Re-initialize lucide icons for new elements
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function renumberQuestions() {
+    document.querySelectorAll('#questionsContainer .question-block').forEach((block, idx) => {
+        block.querySelector('.question-number-badge').textContent = `Câu ${idx + 1}`;
+    });
+}
+
+function setupAnswers(block, qIdx, type, answers = []) {
+    const list = block.querySelector('.answers-list');
+    const addBtn = block.querySelector('.add-ans-btn');
+    list.innerHTML = '';
+    
+    if (type === 'truefalse') {
+        addBtn.style.display = 'none';
+        const correctVal = (answers.length > 0 && answers[1] && answers[1].is_correct) ? '1' : '0';
+        addAnswerRow(block, qIdx, type, 'Đúng', correctVal === '0');
+        addAnswerRow(block, qIdx, type, 'Sai', correctVal === '1');
+    } else {
+        addBtn.style.display = 'inline-flex';
+        if (answers.length > 0) {
+            answers.forEach(a => {
+                addAnswerRow(block, qIdx, type, a.text, a.is_correct);
+            });
+        } else {
+            // default choices
+            addAnswerRow(block, qIdx, type, 'Đáp án A', true);
+            addAnswerRow(block, qIdx, type, 'Đáp án B', false);
+            addAnswerRow(block, qIdx, type, 'Đáp án C', false);
+            addAnswerRow(block, qIdx, type, 'Đáp án D', false);
+        }
+    }
+}
+
+function addAnswerRow(block, qIdx, type, text = '', isCorrect = false) {
+    const list = block.querySelector('.answers-list');
+    const ansIdx = list.children.length;
+    
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-3 p-2 rounded-md hover:bg-slate-50 transition-colors group';
+    
+    let inputControl = '';
+    if (type === 'multi') {
+        inputControl = `<input class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600 cursor-pointer" type="checkbox" name="question_${qIdx}_answer_${ansIdx}_correct" value="1" ${isCorrect ? 'checked' : ''}>`;
+    } else {
+        inputControl = `<input class="h-4 w-4 border-slate-300 text-blue-600 focus:ring-blue-600 cursor-pointer" type="radio" name="question_${qIdx}_correct" value="${ansIdx}" ${isCorrect ? 'checked' : ''}>`;
+    }
+    
+    row.innerHTML = `
+        <div class="flex items-center justify-center px-1">
+            ${inputControl}
+        </div>
+        <input name="question_${qIdx}_answer_${ansIdx}_text" class="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors shadow-sm" required value="${escapeHtmlAttr(text)}" placeholder="Nhập đáp án...">
+        ${type !== 'truefalse' ? `<button type="button" class="inline-flex items-center justify-center rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 shrink-0 transition-colors remove-ans-btn opacity-0 group-hover:opacity-100">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>` : '<div class="w-8 shrink-0"></div>'}
+    `;
+    
+    list.appendChild(row);
+    
+    if (type !== 'truefalse') {
+        row.querySelector('.remove-ans-btn').addEventListener('click', () => {
+            row.remove();
+            reindexAnswers(list, qIdx, type);
+        });
+    }
+}
+
+function reindexAnswers(list, qIdx, type) {
+    Array.from(list.children).forEach((row, ansIdx) => {
+        const input = row.querySelector('input[type="radio"], input[type="checkbox"]');
+        const textInput = row.querySelector('input[type="text"], input:not([type="radio"]):not([type="checkbox"])');
+        
+        if (type === 'multi') {
+            input.name = `question_${qIdx}_answer_${ansIdx}_correct`;
+        } else {
+            input.value = ansIdx;
+        }
+        textInput.name = `question_${qIdx}_answer_${ansIdx}_text`;
+    });
+}
+
+function escapeHtmlAttr(string) {
+    return string ? string.replace(/"/g, '&quot;') : '';
+}
+</script>
+{% endblock %}

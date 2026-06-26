@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Quản lý khóa học</h1>
+        <p class="text-sm text-slate-500 mt-1">Quản lý môn học, giáo viên, học phí và trạng thái lớp học</p>
+    </div>
+    {% if current_user.role in ['admin', 'manager'] %}
+    <a href="{{ url_for('add_course') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2">
+        <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Thêm khóa học
+    </a>
+    {% endif %}
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-8">
+    <div class="table-container" data-table-tools>
+        <table class="shadcn-table">
+            <thead class="bg-slate-50/50">
+                <tr>
+                    <th>Khóa học</th>
+                    <th>Môn</th>
+                    <th>Giáo viên</th>
+                    <th>Phòng</th>
+                    <th>Học phí</th>
+                    <th>Thời gian</th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in courses %}
+            <tr class="transition-colors hover:bg-slate-50/50">
+                <td class="font-medium text-slate-900">{{ c.course_name }}</td>
+                <td class="text-slate-600">{{ c.subject }}</td>
+                <td class="text-slate-600">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+                        {{ c.teacher.fullname if c.teacher else 'Chưa phân công' }}
+                    </div>
+                </td>
+                <td class="text-slate-600">{{ c.classroom or '-' }}</td>
+                <td>
+                    <div class="font-medium text-slate-900">{{ money(c.tuition_amount) }} đ</div>
+                    <div class="text-xs text-slate-500">{{ TUITION_LABELS[c.tuition_type] }}</div>
+                </td>
+                <td class="text-sm text-slate-600">
+                    <div>{{ c.start_date or '—' }}</div>
+                    <div class="text-xs text-slate-400">{{ c.end_date or '—' }}</div>
+                </td>
+                <td>
+                    {% if c.is_active %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">Đang mở</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Tạm ngưng</span>
+                    {% endif %}
+                </td>
+                <td class="text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        {% if current_user.role in ['admin', 'manager'] %}
+                        <a href="{{ url_for('edit_course', course_id=c.id) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors" title="Sửa">
+                            <i data-lucide="pencil" class="h-4 w-4"></i>
+                        </a>
+                        <form class="inline-block" method="post" action="{{ url_for('delete_course', course_id=c.id) }}" onsubmit="return confirm('Bạn có chắc muốn xóa khóa học này không?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-transparent text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors" title="Xóa">
+                                <i data-lucide="trash-2" class="h-4 w-4"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if current_user.role == 'teacher' and c.teacher_id == current_user.id %}
+                        <a href="{{ url_for('mark_attendance', course_id=c.id) }}" class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-sm font-medium h-8 px-3 transition-colors">
+                            Điểm danh
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="h-24 text-center text-slate-500">Chưa có khóa học nào.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if current_user.role in ['admin', 'manager'] %}
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-8 max-w-3xl">
+    <div class="p-6 pb-4 border-b border-slate-100">
+        <h3 class="font-semibold leading-none tracking-tight">Ghi danh học sinh nhanh</h3>
+        <p class="text-sm text-slate-500 mt-1">Thêm học sinh vào khóa học bằng ID.</p>
+    </div>
+    <div class="p-6">
+        <form method="post" action="{{ url_for('add_enrollment') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="space-y-2 w-full">
+                <label class="text-sm font-medium leading-none text-slate-900">ID học sinh</label>
+                <input name="student_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" placeholder="Ví dụ: 12" required>
+            </div>
+            <div class="space-y-2 w-full">
+                <label class="text-sm font-medium leading-none text-slate-900">ID khóa học</label>
+                <input name="course_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" placeholder="Ví dụ: 5" required>
+            </div>
+            <div class="space-y-2 w-full">
+                <label class="text-sm font-medium leading-none text-slate-900">ID giáo viên</label>
+                <input name="teacher_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" placeholder="Ví dụ: 2 (Không bắt buộc)">
+            </div>
+            <div class="sm:col-span-3 mt-2 flex justify-end">
+                <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 border border-slate-200 bg-slate-900 text-white hover:bg-slate-900/90 h-10 px-8 w-full sm:w-auto">
+                    <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Ghi danh học sinh
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

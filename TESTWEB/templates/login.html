@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[80vh]">
+    <div class="w-full max-w-md bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-8 pt-8 pb-6 text-center">
+            <div class="mx-auto mb-4 w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center">
+                <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Đăng nhập</h1>
+            <p class="text-sm text-slate-500 mt-2">Chào mừng trở lại! Vui lòng nhập thông tin của bạn.</p>
+        </div>
+
+        <div class="px-8 pb-8">
+            <form method="POST" action="" class="space-y-4">
+                {{ form.hidden_tag() }}
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900" for="username">
+                        Tên đăng nhập
+                    </label>
+                    <div class="relative">
+                        <i data-lucide="user" class="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
+                        {{ form.username(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 pl-9 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors", placeholder="Nhập tên đăng nhập") }}
+                    </div>
+                    {% for error in form.username.errors %}
+                        <p class="text-[0.8rem] font-medium text-red-500 mt-1">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900" for="password">
+                            Mật khẩu
+                        </label>
+                    </div>
+                    <div class="relative">
+                        <i data-lucide="lock" class="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
+                        {{ form.password(class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 pl-9 pr-10 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors", id="password", placeholder="••••••••") }}
+                        <button type="button" onclick="togglePassword()" id="toggleBtn" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none">
+                            <i data-lucide="eye" id="eyeIcon" class="h-4 w-4"></i>
+                        </button>
+                    </div>
+                    {% for error in form.password.errors %}
+                        <p class="text-[0.8rem] font-medium text-red-500 mt-1">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <button type="submit" class="inline-flex w-full items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2 mt-2">
+                    Đăng nhập
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-slate-50 px-8 py-4 border-t border-slate-200 text-center">
+            <p class="text-sm text-slate-600">
+                Chưa có tài khoản? 
+                <a href="{{ url_for('register') }}" class="font-semibold text-slate-900 hover:underline">Đăng ký ngay</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById("password");
+    const eyeIcon = document.getElementById("eyeIcon");
+    
+    if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        eyeIcon.setAttribute("data-lucide", "eye-off");
+    } else {
+        passwordInput.type = "password";
+        eyeIcon.setAttribute("data-lucide", "eye");
+    }
+    lucide.createIcons();
+}
+</script>        
+{% endblock %}

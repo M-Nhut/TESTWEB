@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Điểm danh</h1>
+    <p class="text-sm text-slate-500 mt-1">Chọn lớp học để ghi nhận điểm danh hoặc xem lịch sử.</p>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-8">
+    <div class="p-6 pb-4 border-b border-slate-100">
+        <h3 class="font-semibold leading-none tracking-tight">Chọn lớp để điểm danh</h3>
+        <p class="text-sm text-slate-500 mt-1">Các khóa học đang mở.</p>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for c in courses %}
+            <a href="{{ url_for('mark_attendance', course_id=c.id) }}" class="group relative flex flex-col items-start justify-between rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50 transition-all">
+                <div class="space-y-1 mb-4">
+                    <h4 class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">{{ c.course_name }}</h4>
+                    <div class="text-sm text-slate-500 flex items-center">
+                        <i data-lucide="user" class="w-3.5 h-3.5 mr-1.5"></i>
+                        {{ c.teacher.fullname if c.teacher else 'Chưa phân công' }}
+                    </div>
+                </div>
+                <div class="inline-flex items-center text-sm font-medium text-blue-600">
+                    Điểm danh ngay <i data-lucide="arrow-right" class="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1"></i>
+                </div>
+            </a>
+            {% else %}
+            <div class="col-span-full py-8 text-center text-sm text-slate-500 border-2 border-dashed border-slate-200 rounded-lg">
+                Không có lớp học nào khả dụng để điểm danh.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="p-6 pb-4 border-b border-slate-100">
+        <h3 class="font-semibold leading-none tracking-tight">Lịch sử điểm danh</h3>
+        <p class="text-sm text-slate-500 mt-1">Các ghi nhận điểm danh gần đây.</p>
+    </div>
+    <div class="table-container" data-table-tools>
+        <table class="shadcn-table">
+            <thead class="bg-slate-50/50">
+                <tr>
+                    <th>Ngày</th>
+                    <th>Học sinh</th>
+                    <th>Khóa học</th>
+                    <th>Trạng thái</th>
+                    <th>Người chấm</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in records %}
+            <tr class="transition-colors hover:bg-slate-50/50">
+                <td class="text-slate-500 font-medium">{{ r.date }}</td>
+                <td class="font-medium text-slate-900">{{ r.student.fullname }}</td>
+                <td class="text-slate-600 truncate max-w-[200px]">{{ r.course.course_name }}</td>
+                <td>
+                    {% if r.status == 'present' %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">Có mặt</span>
+                    {% elif r.status == 'late' %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-800">Đi trễ</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">Vắng</span>
+                    {% endif %}
+                </td>
+                <td class="text-slate-500 text-sm">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="user-check" class="w-3.5 h-3.5 text-slate-400"></i>
+                        {{ r.marked_by.fullname if r.marked_by else '-' }}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="h-24 text-center text-slate-500">Chưa có dữ liệu điểm danh.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,231 @@
+{% extends "layout.html" %}
+{% block content %}
+
+{% if single_view %}
+<!-- Single Student Result View -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Kết quả bài thi</h1>
+        <p class="text-sm text-slate-500 mt-1">{{ exam.title }} • Lớp: <span class="font-medium text-slate-700">{{ exam.course.course_name }}</span></p>
+    </div>
+    <a href="{{ url_for('exam_list') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4">
+        <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Đề thi khác
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Score Card -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col items-center justify-center text-center h-full">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Điểm số của bạn</h3>
+        <div class="flex items-baseline justify-center gap-1 mb-2">
+            <span class="text-6xl font-black tracking-tighter {% if submission.percentage >= 80 %}text-green-600{% elif submission.percentage >= 50 %}text-yellow-500{% else %}text-red-500{% endif %}">
+                {{ submission.total_score }}
+            </span>
+            <span class="text-2xl font-medium text-slate-400">/{{ submission.max_score }}</span>
+        </div>
+        <div class="text-lg font-medium text-slate-600 mb-4">Tỷ lệ đúng: {{ submission.percentage }}%</div>
+        <div>
+            {% if submission.percentage >= 80 %}
+            <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                Xuất sắc 🎉
+            </span>
+            {% elif submission.percentage >= 50 %}
+            <span class="inline-flex items-center rounded-full bg-yellow-50 px-3 py-1 text-sm font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
+                Đạt yêu cầu 👍
+            </span>
+            {% else %}
+            <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
+                Chưa đạt 😢
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Time Card -->
+    <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+        <h3 class="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3 mb-4">Thông tin làm bài</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+                <div class="text-xs text-slate-500 mb-1 flex items-center"><i data-lucide="play-circle" class="w-3.5 h-3.5 mr-1 text-slate-400"></i> Thời gian bắt đầu</div>
+                <div class="font-semibold text-slate-900">{{ submission.started_at.strftime('%H:%M:%S ngày %d/%m/%Y') }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 mb-1 flex items-center"><i data-lucide="check-square" class="w-3.5 h-3.5 mr-1 text-slate-400"></i> Thời gian nộp bài</div>
+                <div class="font-semibold text-slate-900">
+                    {% if submission.submitted_at %}
+                    {{ submission.submitted_at.strftime('%H:%M:%S ngày %d/%m/%Y') }}
+                    {% else %}
+                    <span class="text-slate-400 font-normal italic">N/A</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 mb-1 flex items-center"><i data-lucide="user" class="w-3.5 h-3.5 mr-1 text-slate-400"></i> Học sinh thực hiện</div>
+                <div class="font-semibold text-slate-900">{{ current_user.fullname }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 mb-1 flex items-center"><i data-lucide="hash" class="w-3.5 h-3.5 mr-1 text-slate-400"></i> Mã số học sinh</div>
+                <div class="font-semibold text-slate-900">{{ current_user.user_code }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="text-xl font-bold tracking-tight text-slate-900 mb-6 flex items-center">
+    <i data-lucide="clipboard-list" class="w-5 h-5 mr-2 text-slate-500"></i> Chi tiết bài làm
+</h2>
+
+<div class="space-y-6">
+    {% set sa_map = {} %}
+    {% for sa in submission.answers %}
+        {% set _ = sa_map.update({sa.question_id: sa}) %}
+    {% endfor %}
+    
+    {% for q in exam.questions %}
+    {% set sa = sa_map.get(q.id) %}
+    {% set selected_ids = sa.get_selected_ids() if sa else [] %}
+    {% set is_correct = sa.is_correct if sa else false %}
+    {% set points_earned = sa.points_earned if sa else 0 %}
+    
+    <div class="rounded-xl border bg-white overflow-hidden shadow-sm {% if is_correct %}border-green-200{% else %}border-red-200{% endif %} transition-colors">
+        <div class="p-4 border-b flex flex-col sm:flex-row justify-between items-start gap-4 {% if is_correct %}bg-green-50/50 border-green-100{% else %}bg-red-50/50 border-red-100{% endif %}">
+            <div class="flex items-start gap-3">
+                <span class="inline-flex items-center justify-center rounded bg-slate-900 px-2 py-1 text-xs font-medium text-white shrink-0 mt-0.5">
+                    Câu {{ loop.index }}
+                </span>
+                <span class="font-medium text-slate-900 leading-relaxed">{{ q.question_text }}</span>
+            </div>
+            <div class="shrink-0 self-end sm:self-auto">
+                {% if is_correct %}
+                <span class="inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800 border border-green-200">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-1"></i> Đúng (+{{ points_earned }}đ)
+                </span>
+                {% else %}
+                <span class="inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800 border border-red-200">
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5 mr-1"></i> Sai (+{{ points_earned }}đ / {{ q.points }}đ)
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="p-4 space-y-2">
+            {% for a in q.answers %}
+            {% set is_selected = a.id in selected_ids %}
+            <div class="flex items-start justify-between gap-4 p-3 rounded-lg border {% if a.is_correct %}bg-green-50 border-green-200 text-green-900{% elif is_selected and not a.is_correct %}bg-red-50 border-red-200 text-red-900{% else %}bg-white border-slate-100 text-slate-600{% endif %}">
+                <div class="flex items-start gap-3">
+                    <div class="shrink-0 mt-0.5">
+                        {% if q.question_type == 'multi' %}
+                            {% if is_selected %}
+                            <i data-lucide="check-square" class="w-4 h-4 {% if a.is_correct %}text-green-600{% else %}text-red-500{% endif %}"></i>
+                            {% else %}
+                            <i data-lucide="square" class="w-4 h-4 text-slate-300"></i>
+                            {% endif %}
+                        {% else %}
+                            {% if is_selected %}
+                            <i data-lucide="circle-dot" class="w-4 h-4 {% if a.is_correct %}text-green-600{% else %}text-red-500{% endif %}"></i>
+                            {% else %}
+                            <i data-lucide="circle" class="w-4 h-4 text-slate-300"></i>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <span class="text-sm font-medium">{{ a.answer_text }}</span>
+                </div>
+                
+                <div class="flex flex-col gap-1 items-end shrink-0">
+                    {% if a.is_correct %}
+                    <span class="inline-flex items-center rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider">
+                        Đáp án đúng
+                    </span>
+                    {% endif %}
+                    {% if is_selected %}
+                    <span class="inline-flex items-center rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider">
+                        Bạn chọn
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<!-- Manager / Admin / Teacher Aggregate List View -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div>
+        <div class="flex items-center gap-2 mb-2">
+            <div class="w-6 h-6 bg-slate-900 rounded flex items-center justify-center">
+                <i data-lucide="bar-chart-3" class="w-3 h-3 text-white"></i>
+            </div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Thống kê điểm số</span>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Kết quả bài thi</h1>
+        <p class="text-sm text-slate-500 mt-1">{{ exam.title }} • Lớp: <span class="font-medium text-slate-700">{{ exam.course.course_name }}</span></p>
+    </div>
+    <a href="{{ url_for('exam_list') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4">
+        <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Danh sách đề thi
+    </a>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="table-container" data-table-tools>
+        <table class="shadcn-table">
+            <thead class="bg-slate-50/50">
+                <tr>
+                    <th>Mã Học sinh</th>
+                    <th>Họ và Tên</th>
+                    <th class="text-center">Điểm số</th>
+                    <th class="w-48">Tỷ lệ đúng</th>
+                    <th>Thời gian nộp</th>
+                    <th class="text-right">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                <tr class="transition-colors hover:bg-slate-50/50">
+                    <td class="font-medium text-slate-500">{{ sub.student.user_code }}</td>
+                    <td class="font-medium text-slate-900">{{ sub.student.fullname }}</td>
+                    <td class="text-center font-bold text-slate-900">{{ sub.total_score }} <span class="text-slate-400 font-medium text-xs">/ {{ sub.max_score }}</span></td>
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-1.5 rounded-full {% if sub.percentage >= 80 %}bg-green-500{% elif sub.percentage >= 50 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ sub.percentage }}%;"></div>
+                            </div>
+                            <span class="text-xs font-semibold w-8 text-right {% if sub.percentage >= 80 %}text-green-700{% elif sub.percentage >= 50 %}text-yellow-700{% else %}text-red-700{% endif %}">{{ sub.percentage }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-slate-500 text-sm">
+                        {% if sub.submitted_at %}
+                            <div class="flex items-center">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5 mr-1.5 text-slate-400"></i>
+                                {{ sub.submitted_at.strftime('%H:%M %d/%m/%Y') }}
+                            </div>
+                        {% else %}
+                            <span class="text-slate-400 italic">Chưa nộp</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        {% if sub.is_graded %}
+                        <span class="inline-flex items-center rounded-full border border-transparent bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-1"></i> Đã chấm
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full border border-transparent bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-800">
+                            <i data-lucide="timer" class="w-3.5 h-3.5 mr-1"></i> Đang làm bài
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="h-24 text-center text-slate-500">Chưa có học sinh nào nộp bài thi này.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set titles = {'students':'Quản lý học sinh','teachers':'Quản lý giáo viên','parents':'Quản lý phụ huynh','staff':'Quản lý admin / quản lý'} %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ titles[role_name] }}</h1>
+    <p class="text-sm text-slate-500 mt-1">Quản lý và thêm người dùng mới vào hệ thống.</p>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-8 max-w-6xl">
+    <div class="p-6 pb-4 border-b border-slate-100">
+        <h3 class="font-semibold leading-none tracking-tight">Thêm người dùng</h3>
+        <p class="text-sm text-slate-500 mt-1">Tạo tài khoản nhanh.</p>
+    </div>
+    <div class="p-6">
+        <form method="post" action="{{ url_for('add_user') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" value="{{ 'student' if role_name == 'students' else 'teacher' if role_name == 'teachers' else 'parent' if role_name == 'parents' else 'manager' }}">
+            
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Họ tên</label>
+                <input name="fullname" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="Nguyễn Văn A" required>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Tên đăng nhập</label>
+                <input name="username" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="nguyenvana" required>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Mã (Code)</label>
+                <input name="user_code" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="HS001" required>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Điện thoại</label>
+                <input name="phone" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="090...">
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Lớp / Chức vụ</label>
+                <input name="position" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="Lớp 10">
+            </div>
+            
+            {% if role_name == 'teachers' %}
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Lương/giờ</label>
+                <input name="salary_rate_per_hour" type="number" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="100000">
+            </div>
+            {% endif %}
+            
+            {% if role_name == 'parents' %}
+            <div class="space-y-2 lg:col-span-2">
+                <label class="text-xs font-medium text-slate-700">Liên kết học sinh</label>
+                <select name="linked_student_id" class="flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors">
+                    <option value="">-- Chọn học sinh --</option>
+                    {% for s in students %}
+                    <option value="{{ s.id }}">{{ s.fullname }} ({{ s.user_code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-700">Mật khẩu</label>
+                <input name="password" class="flex h-9 w-full rounded-md border border-slate-300 bg-transparent px-3 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors" placeholder="Mặc định: 123456">
+            </div>
+            
+            <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-9 px-4 w-full lg:w-auto">
+                <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Thêm
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-8">
+    <div class="table-container" data-table-tools>
+        <table class="shadcn-table">
+            <thead class="bg-slate-50/50">
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Tên đăng nhập</th>
+                    {% if role_name == 'students' %}
+                    <th>Mã HS</th><th>Điện thoại</th><th>Trạng thái</th>
+                    {% elif role_name == 'teachers' %}
+                    <th>Mã GV</th><th>Lương/Giờ</th><th>Lớp đang dạy</th><th>Đã dạy (tháng)</th><th>Lương tạm tính</th>
+                    {% elif role_name == 'parents' %}
+                    <th>Liên kết HS</th><th>Điện thoại</th>
+                    {% else %}
+                    <th>Vai trò</th><th>Trạng thái</th>
+                    {% endif %}
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in users %}
+            {% set summary = current_month_summary(u.id) if role_name == 'teachers' else None %}
+            <tr class="transition-colors hover:bg-slate-50/50">
+                <td class="font-medium text-slate-900">{{ u.fullname }}</td>
+                <td class="text-slate-600">{{ u.username }}</td>
+                
+                {% if role_name == 'students' %}
+                <td class="text-slate-500">{{ u.user_code }}</td>
+                <td class="text-slate-500">{{ u.phone or '-' }}</td>
+                <td>
+                    {% if u.is_active %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">Hoạt động</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Khóa</span>
+                    {% endif %}
+                </td>
+                {% elif role_name == 'teachers' %}
+                <td class="text-slate-500">{{ u.user_code }}</td>
+                <td class="text-slate-500">{{ money(u.salary_rate_per_hour) }} đ</td>
+                <td class="text-slate-500">{{ u.courses_taught|length }} lớp</td>
+                <td class="text-slate-500">{{ summary.total_classes }} buổi</td>
+                <td class="font-medium text-slate-900">{{ money(summary.salary) }} đ</td>
+                {% elif role_name == 'parents' %}
+                <td class="text-slate-500">{{ u.linked_student.fullname if u.linked_student else '-' }}</td>
+                <td class="text-slate-500">{{ u.phone or '-' }}</td>
+                {% else %}
+                <td>
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">{{ u.role }}</span>
+                </td>
+                <td>
+                    {% if u.is_active %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">Hoạt động</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full border border-transparent bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Khóa</span>
+                    {% endif %}
+                </td>
+                {% endif %}
+                
+                <td class="text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <a href="{{ url_for('edit_user', user_id=u.id) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors" title="Sửa">
+                            <i data-lucide="pencil" class="h-4 w-4"></i>
+                        </a>
+                        <form class="inline-block" method="post" action="{{ url_for('delete_user', user_id=u.id) }}" onsubmit="return confirm('Bạn có chắc muốn xóa người dùng này không?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-transparent text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors" title="Xóa">
+                                <i data-lucide="trash-2" class="h-4 w-4"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="h-24 text-center text-slate-500">Chưa có người dùng nào.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

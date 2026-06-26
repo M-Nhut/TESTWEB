@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+        {{ 'Sửa khóa học' if course else 'Thêm khóa học mới' }}
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">
+        {{ 'Chỉnh sửa thông tin khóa học hiện tại.' if course else 'Điền thông tin bên dưới để tạo khóa học.' }}
+    </p>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden max-w-4xl">
+    <div class="p-6">
+        <form method="post" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2 md:col-span-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Tên khóa học <span class="text-red-500">*</span></label>
+                    <input name="course_name" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" value="{{ course.course_name if course else '' }}" placeholder="Nhập tên khóa học" required>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Môn học <span class="text-red-500">*</span></label>
+                    <input name="subject" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" value="{{ course.subject if course else '' }}" placeholder="Toán, Lý, Hóa..." required>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Giáo viên</label>
+                    <select name="teacher_id" class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors">
+                        <option value="">Chưa phân công</option>
+                        {% for t in teachers %}
+                        <option value="{{ t.id }}" {% if course and course.teacher_id == t.id %}selected{% endif %}>{{ t.fullname }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Học phí</label>
+                    <div class="relative">
+                        <input name="tuition_amount" type="number" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 pr-12 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" value="{{ course.tuition_amount if course else 0 }}">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <span class="text-sm text-slate-500">VND</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Hình thức thu học phí</label>
+                    <select name="tuition_type" class="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors">
+                        <option value="monthly" {% if not course or course.tuition_type == 'monthly' %}selected{% endif %}>Theo tháng</option>
+                        <option value="full_course" {% if course and course.tuition_type == 'full_course' %}selected{% endif %}>Trọn khóa</option>
+                    </select>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Phòng học (mặc định)</label>
+                    <input name="classroom" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" value="{{ course.classroom if course else '' }}" placeholder="Ví dụ: P101">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center space-x-2 mt-8">
+                        <input type="checkbox" id="is_active" name="is_active" value="1" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" {% if not course or course.is_active %}checked{% endif %}>
+                        <label for="is_active" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Đang hoạt động</label>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Ngày bắt đầu</label>
+                    <input name="start_date" type="date" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" value="{{ course.start_date if course and course.start_date else '' }}">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Ngày kết thúc</label>
+                    <input name="end_date" type="date" class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" value="{{ course.end_date if course and course.end_date else '' }}">
+                </div>
+                
+                <div class="space-y-2 md:col-span-2">
+                    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900">Mô tả</label>
+                    <textarea name="description" class="flex min-h-[80px] w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors" rows="4" placeholder="Thông tin chi tiết về khóa học...">{{ course.description if course else '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="pt-4 flex items-center gap-3 border-t border-slate-100">
+                <button type="submit" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-6">
+                    <i data-lucide="save" class="w-4 h-4 mr-2"></i> Lưu khóa học
+                </button>
+                <a href="{{ url_for('courses') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4">
+                    Hủy
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
