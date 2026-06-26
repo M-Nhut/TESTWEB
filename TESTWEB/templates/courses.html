@@ -30,7 +30,9 @@
             <tbody>
             {% for c in courses %}
             <tr class="transition-colors hover:bg-slate-50/50">
-                <td class="font-medium text-slate-900">{{ c.course_name }}</td>
+                <td class="font-medium text-slate-900">
+                    <a href="{{ url_for('course_detail', course_id=c.id) }}" class="text-blue-600 hover:text-blue-800 hover:underline font-semibold">{{ c.course_name }}</a>
+                </td>
                 <td class="text-slate-600">{{ c.subject }}</td>
                 <td class="text-slate-600">
                     <div class="flex items-center gap-2">

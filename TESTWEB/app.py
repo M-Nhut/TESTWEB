@@ -469,6 +469,29 @@ def first_day_of_month():
     return today.replace(day=1)
 
 
+def resolve_student_id(val):
+    if not val:
+        return None
+    # 1. Try to treat val as integer ID
+    try:
+        val_int = int(val)
+        user = db.session.get(User, val_int)
+        if user and user.role == "student":
+            return user.id
+    except ValueError:
+        pass
+
+    # 2. Try to look up by username (case-insensitive) or user_code (case-insensitive)
+    user = User.query.filter(
+        (User.role == "student") &
+        ((User.username == val.lower()) | (User.user_code == val.upper()) | (User.user_code == val) | (User.username == val))
+    ).first()
+    if user:
+        return user.id
+
+    return None
+
+
 def month_key(date_value=None):
     return (date_value or dt.date.today()).strftime("%Y-%m")
 
@@ -1197,6 +1220,36 @@ def delete_course(course_id):
     return redirect(url_for("courses"))
 
 
+@app.route("/courses/<int:course_id>")
+@login_required
+def course_detail(course_id):
+    course = db.session.get(Course, course_id) or abort(404)
+    # Check authorization if teacher, student, parent
+    if current_user.role == "teacher" and course.teacher_id != current_user.id:
+        flash("Bạn không dạy khóa học này.", "danger")
+        return redirect(url_for("courses"))
+    elif current_user.role in ("student", "parent"):
+        student_ids = get_accessible_student_ids()
+        is_enrolled = Enrollment.query.filter(Enrollment.student_id.in_(student_ids), Enrollment.course_id == course.id, Enrollment.status == "active").first()
+        if not is_enrolled:
+            flash("Bạn không có quyền truy cập khóa học này.", "danger")
+            return redirect(url_for("courses"))
+
+    # Active enrollments
+    active_enrollments = Enrollment.query.filter_by(course_id=course.id, status="active").all()
+    # List of all active students for select dropdown (excluding already enrolled)
+    enrolled_student_ids = [e.student_id for e in active_enrollments]
+    all_active_students = User.query.filter_by(role="student", is_active=True).order_by(User.fullname).all()
+    available_students = [s for s in all_active_students if s.id not in enrolled_student_ids]
+    
+    return render_template(
+        "course_detail.html", 
+        course=course, 
+        enrollments=active_enrollments, 
+        available_students=available_students
+    )
+
+
 # ──────────────────────── SCHEDULES ────────────────────────
 
 @app.route("/schedules", methods=["GET", "POST"])
@@ -1675,11 +1728,29 @@ def reset_password(user_id):
 @login_required
 @manager_or_admin_required
 def add_enrollment():
-    enrollment = Enrollment(student_id=request.form["student_id"], course_id=request.form["course_id"], status="active")
+    student_id_raw = request.form["student_id"]
+    course_id = int(request.form["course_id"])
+    
+    student_id = resolve_student_id(student_id_raw)
+    if not student_id:
+        flash(f"Không tìm thấy học sinh với mã hoặc tên đăng nhập '{student_id_raw}'.", "danger")
+        return redirect(request.referrer or url_for("courses"))
+        
+    existing = Enrollment.query.filter_by(student_id=student_id, course_id=course_id).first()
+    if existing:
+        if existing.status == "active":
+            flash("Học sinh này đã ghi danh vào khóa học rồi.", "warning")
+        else:
+            existing.status = "active"
+            db.session.commit()
+            flash("Đã kích hoạt lại ghi danh cho học sinh này.", "success")
+        return redirect(request.referrer or url_for("courses"))
+        
+    enrollment = Enrollment(student_id=student_id, course_id=course_id, status="active")
     db.session.add(enrollment)
     db.session.commit()
-    flash("Đã ghi danh học sinh.", "success")
-    return redirect(url_for("courses"))
+    flash("Đã ghi danh học sinh thành công.", "success")
+    return redirect(request.referrer or url_for("courses"))
 
 
 # ──────────────────────── EXAMS ────────────────────────
@@ -2150,6 +2221,20 @@ def migrate_existing_sqlite_schema():
         add_column_if_missing("teaching_record", "confirmed_by_teacher", "BOOLEAN DEFAULT 0")
         add_column_if_missing("teaching_record", "confirmed_at", "DATETIME")
 
+    if "enrollment" in tables:
+        # Clean up string student_ids stored in the database to use integer IDs
+        rows = db.session.execute(db.text("SELECT id, student_id FROM enrollment")).all()
+        for r_id, s_id in rows:
+            if isinstance(s_id, str) and not str(s_id).isdigit():
+                # Look up the user by username or user_code
+                user = User.query.filter(
+                    (User.role == "student") &
+                    ((User.username == s_id.lower()) | (User.user_code == s_id.upper()) | (User.username == s_id) | (User.user_code == s_id))
+                ).first()
+                if user:
+                    db.session.execute(db.text("UPDATE enrollment SET student_id = :uid WHERE id = :eid"), {"uid": user.id, "eid": r_id})
+        db.session.commit()
+
 
 def backfill_teaching_records_from_attendance():
     pairs = (
@@ -2172,7 +2257,10 @@ def initialize_database():
     seed_sample_data()
 
 
+# Always run database initialization on startup (both local and Vercel environments)
+with app.app_context():
+    initialize_database()
+
+
 if __name__ == "__main__":
-    with app.app_context():
-        initialize_database()
     app.run(debug=True, host="0.0.0.0", port=5002)
