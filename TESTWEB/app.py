@@ -22,11 +22,28 @@ from werkzeug.security import check_password_hash, generate_password_hash
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "khoa-bi-mat-sieu-cap-vipro-123456"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "tutoring_center.db")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["UPLOAD_FOLDER_AVATARS"] = os.path.join(basedir, "static", "avatars")
-app.config["UPLOAD_FOLDER_COURSES"] = os.path.join(basedir, "static", "course_images")
 
+# Check if running on Vercel
+IS_VERCEL = os.environ.get("VERCEL") == "1" or os.environ.get("VERCEL") is not None
+
+if IS_VERCEL:
+    db_path = "/tmp/tutoring_center.db"
+    original_db_path = os.path.join(basedir, "tutoring_center.db")
+    if os.path.exists(original_db_path) and not os.path.exists(db_path):
+        import shutil
+        shutil.copy(original_db_path, db_path)
+    
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
+    app.config["UPLOAD_FOLDER_AVATARS"] = "/tmp/static/avatars"
+    app.config["UPLOAD_FOLDER_COURSES"] = "/tmp/static/course_images"
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "tutoring_center.db")
+    app.config["UPLOAD_FOLDER_AVATARS"] = os.path.join(basedir, "static", "avatars")
+    app.config["UPLOAD_FOLDER_COURSES"] = os.path.join(basedir, "static", "course_images")
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Ensure upload directories exist
 os.makedirs(app.config["UPLOAD_FOLDER_AVATARS"], exist_ok=True)
 os.makedirs(app.config["UPLOAD_FOLDER_COURSES"], exist_ok=True)
 
@@ -36,6 +53,26 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.login_message = "Vui lòng đăng nhập để sử dụng tính năng này."
 login_manager.login_message_category = "info"
+
+
+@app.route('/static/avatars/<path:filename>')
+def serve_avatar(filename):
+    from flask import send_from_directory
+    if IS_VERCEL:
+        tmp_file = os.path.join(app.config["UPLOAD_FOLDER_AVATARS"], filename)
+        if os.path.exists(tmp_file):
+            return send_from_directory(app.config["UPLOAD_FOLDER_AVATARS"], filename)
+    return send_from_directory(os.path.join(basedir, "static", "avatars"), filename)
+
+
+@app.route('/static/course_images/<path:filename>')
+def serve_course_image(filename):
+    from flask import send_from_directory
+    if IS_VERCEL:
+        tmp_file = os.path.join(app.config["UPLOAD_FOLDER_COURSES"], filename)
+        if os.path.exists(tmp_file):
+            return send_from_directory(app.config["UPLOAD_FOLDER_COURSES"], filename)
+    return send_from_directory(os.path.join(basedir, "static", "course_images"), filename)
 
 
 ROLES = ("admin", "manager", "teacher", "student", "parent")
