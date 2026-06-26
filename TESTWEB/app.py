@@ -26,18 +26,35 @@ app.config["SECRET_KEY"] = "khoa-bi-mat-sieu-cap-vipro-123456"
 # Check if running on Vercel
 IS_VERCEL = os.environ.get("VERCEL") == "1" or os.environ.get("VERCEL") is not None
 
+# Configure database connection
+DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+    if DATABASE_URL.startswith("postgresql"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 10,
+            "max_overflow": 20,
+            "pool_recycle": 300,
+            "pool_pre_ping": True,
+        }
+else:
+    if IS_VERCEL:
+        db_path = "/tmp/tutoring_center.db"
+        original_db_path = os.path.join(basedir, "tutoring_center.db")
+        if os.path.exists(original_db_path) and not os.path.exists(db_path):
+            import shutil
+            shutil.copy(original_db_path, db_path)
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "tutoring_center.db")
+
 if IS_VERCEL:
-    db_path = "/tmp/tutoring_center.db"
-    original_db_path = os.path.join(basedir, "tutoring_center.db")
-    if os.path.exists(original_db_path) and not os.path.exists(db_path):
-        import shutil
-        shutil.copy(original_db_path, db_path)
-    
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["UPLOAD_FOLDER_AVATARS"] = "/tmp/static/avatars"
     app.config["UPLOAD_FOLDER_COURSES"] = "/tmp/static/course_images"
 else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "tutoring_center.db")
     app.config["UPLOAD_FOLDER_AVATARS"] = os.path.join(basedir, "static", "avatars")
     app.config["UPLOAD_FOLDER_COURSES"] = os.path.join(basedir, "static", "course_images")
 
@@ -2153,8 +2170,13 @@ def seed_sample_data():
 
 
 def table_columns(table_name):
-    rows = db.session.execute(db.text(f"PRAGMA table_info({table_name})")).fetchall()
-    return {row[1] for row in rows}
+    try:
+        inspector = db.inspect(db.engine)
+        columns = inspector.get_columns(table_name)
+        return {col['name'] for col in columns}
+    except Exception as e:
+        print(f"Error inspecting table {table_name}: {e}")
+        return set()
 
 
 def add_column_if_missing(table_name, column_name, ddl):
