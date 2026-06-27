@@ -2181,7 +2181,8 @@ def table_columns(table_name):
 
 def add_column_if_missing(table_name, column_name, ddl):
     if column_name not in table_columns(table_name):
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}"))
+        # Quote table name to prevent conflicts with reserved keywords (like "user" in Postgres)
+        db.session.execute(db.text(f'ALTER TABLE "{table_name}" ADD COLUMN {column_name} {ddl}'))
         db.session.commit()
 
 
@@ -2189,6 +2190,146 @@ def migrate_existing_sqlite_schema():
     inspector = db.inspect(db.engine)
     tables = set(inspector.get_table_names())
 
+    # 1. SQLite specific table recreation to fix NOT NULL constraint mismatches
+    if db.engine.dialect.name == "sqlite":
+        # Rebuild course table if it contains the old 'name' column or 'image_file'
+        if "course" in tables:
+            columns = table_columns("course")
+            if "name" in columns or "image_file" in columns:
+                try:
+                    db.session.execute(db.text("PRAGMA foreign_keys=OFF;"))
+                    db.session.execute(db.text("""
+                        CREATE TABLE course_new (
+                            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                            course_name VARCHAR(120) NOT NULL,
+                            subject VARCHAR(80) NOT NULL,
+                            teacher_id INTEGER,
+                            classroom VARCHAR(40),
+                            description TEXT,
+                            tuition_amount INTEGER DEFAULT 0,
+                            tuition_type VARCHAR(20) DEFAULT 'monthly',
+                            start_date DATE,
+                            end_date DATE,
+                            is_active BOOLEAN DEFAULT 1,
+                            FOREIGN KEY(teacher_id) REFERENCES user (id)
+                        );
+                    """))
+                    db.session.execute(db.text("""
+                        INSERT INTO course_new (id, course_name, subject, teacher_id, classroom, description, tuition_amount, tuition_type, start_date, end_date, is_active)
+                        SELECT 
+                            id, 
+                            COALESCE(course_name, name, ''), 
+                            COALESCE(subject, ''), 
+                            teacher_id, 
+                            classroom, 
+                            COALESCE(description, summary), 
+                            COALESCE(tuition_amount, fee_per_session, 0), 
+                            COALESCE(tuition_type, 'monthly'), 
+                            start_date, 
+                            end_date, 
+                            COALESCE(is_active, 1)
+                        FROM course;
+                    """))
+                    db.session.execute(db.text("DROP TABLE course;"))
+                    db.session.execute(db.text("ALTER TABLE course_new RENAME TO course;"))
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error rebuilding SQLite course table: {e}")
+                finally:
+                    db.session.execute(db.text("PRAGMA foreign_keys=ON;"))
+
+        # Rebuild schedule table if it contains the old 'day_of_week' column
+        if "schedule" in tables:
+            columns = table_columns("schedule")
+            if "day_of_week" in columns:
+                try:
+                    db.session.execute(db.text("PRAGMA foreign_keys=OFF;"))
+                    db.session.execute(db.text("""
+                        CREATE TABLE schedule_new (
+                            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                            course_id INTEGER NOT NULL,
+                            teacher_id INTEGER NOT NULL,
+                            classroom VARCHAR(40) NOT NULL,
+                            weekday INTEGER NOT NULL,
+                            start_time TIME NOT NULL,
+                            end_time TIME NOT NULL,
+                            duration_hours FLOAT NOT NULL,
+                            FOREIGN KEY(course_id) REFERENCES course (id) ON DELETE CASCADE,
+                            FOREIGN KEY(teacher_id) REFERENCES user (id)
+                        );
+                    """))
+                    db.session.execute(db.text("""
+                        INSERT INTO schedule_new (id, course_id, teacher_id, classroom, weekday, start_time, end_time, duration_hours)
+                        SELECT 
+                            id, 
+                            course_id, 
+                            teacher_id, 
+                            COALESCE(classroom, room, ''), 
+                            COALESCE(weekday, day_of_week - 1, 0), 
+                            start_time, 
+                            end_time, 
+                            COALESCE(duration_hours, 1.5)
+                        FROM schedule;
+                    """))
+                    db.session.execute(db.text("DROP TABLE schedule;"))
+                    db.session.execute(db.text("ALTER TABLE schedule_new RENAME TO schedule;"))
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error rebuilding SQLite schedule table: {e}")
+                finally:
+                    db.session.execute(db.text("PRAGMA foreign_keys=ON;"))
+
+        # Rebuild attendance table if it contains the old 'teacher_id' column
+        if "attendance" in tables:
+            columns = table_columns("attendance")
+            if "teacher_id" in columns:
+                try:
+                    db.session.execute(db.text("PRAGMA foreign_keys=OFF;"))
+                    db.session.execute(db.text("""
+                        CREATE TABLE attendance_new (
+                            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                            schedule_id INTEGER,
+                            student_id INTEGER NOT NULL,
+                            course_id INTEGER NOT NULL,
+                            date DATE NOT NULL,
+                            status VARCHAR(20) NOT NULL DEFAULT 'present',
+                            note TEXT,
+                            marked_by_id INTEGER,
+                            created_at DATETIME,
+                            updated_at DATETIME,
+                            CONSTRAINT uq_attendance_student_course_date UNIQUE (student_id, course_id, date),
+                            FOREIGN KEY(student_id) REFERENCES user (id),
+                            FOREIGN KEY(course_id) REFERENCES course (id),
+                            FOREIGN KEY(marked_by_id) REFERENCES user (id)
+                        );
+                    """))
+                    db.session.execute(db.text("""
+                        INSERT INTO attendance_new (id, schedule_id, student_id, course_id, date, status, note, marked_by_id, created_at, updated_at)
+                        SELECT 
+                            id, 
+                            schedule_id, 
+                            COALESCE(student_id, 1), 
+                            COALESCE(course_id, 1), 
+                            date, 
+                            COALESCE(status, 'present'), 
+                            note, 
+                            COALESCE(marked_by_id, teacher_id), 
+                            created_at, 
+                            updated_at
+                        FROM attendance;
+                    """))
+                    db.session.execute(db.text("DROP TABLE attendance;"))
+                    db.session.execute(db.text("ALTER TABLE attendance_new RENAME TO attendance;"))
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error rebuilding SQLite attendance table: {e}")
+                finally:
+                    db.session.execute(db.text("PRAGMA foreign_keys=ON;"))
+
+    # 2. General check & alter DDL for added/missing columns (DB agnostic)
     if "user" in tables:
         add_column_if_missing("user", "salary_rate_per_hour", "INTEGER DEFAULT 0")
         add_column_if_missing("user", "linked_student_id", "INTEGER")
@@ -2201,7 +2342,7 @@ def migrate_existing_sqlite_schema():
         add_column_if_missing("course", "tuition_type", "VARCHAR(20) DEFAULT 'monthly'")
         add_column_if_missing("course", "start_date", "DATE")
         add_column_if_missing("course", "end_date", "DATE")
-        add_column_if_missing("course", "is_active", "BOOLEAN DEFAULT 1")
+        add_column_if_missing("course", "is_active", "BOOLEAN DEFAULT TRUE")
         columns = table_columns("course")
         if "name" in columns:
             db.session.execute(db.text("UPDATE course SET course_name = name WHERE course_name IS NULL OR course_name = ''"))
@@ -2240,7 +2381,7 @@ def migrate_existing_sqlite_schema():
         db.session.commit()
 
     if "teaching_record" in tables:
-        add_column_if_missing("teaching_record", "confirmed_by_teacher", "BOOLEAN DEFAULT 0")
+        add_column_if_missing("teaching_record", "confirmed_by_teacher", "BOOLEAN DEFAULT FALSE")
         add_column_if_missing("teaching_record", "confirmed_at", "DATETIME")
 
     if "enrollment" in tables:
