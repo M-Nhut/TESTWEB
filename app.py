@@ -2443,6 +2443,50 @@ def practice_progress():
     )
 
 
+@app.route("/teacher/practice")
+@login_required
+@teacher_manager_admin_required
+def teacher_practice_list():
+    # Get students who have practice submissions
+    submissions = ExamSubmission.query.filter_by(exam_type="practice").all()
+    students_map = {}
+    for sub in submissions:
+        student = sub.student
+        if student.id not in students_map:
+            students_map[student.id] = {
+                "student": student,
+                "total_practice": 0,
+                "ungraded_count": 0,
+                "latest_activity": sub.submitted_at or sub.started_at or dt.datetime.utcnow()
+            }
+        
+        students_map[student.id]["total_practice"] += 1
+        if not sub.is_graded:
+            students_map[student.id]["ungraded_count"] += 1
+            
+        time_to_cmp = sub.submitted_at or sub.started_at or dt.datetime.utcnow()
+        if time_to_cmp > students_map[student.id]["latest_activity"]:
+            students_map[student.id]["latest_activity"] = time_to_cmp
+
+    students_list = list(students_map.values())
+    students_list.sort(key=lambda x: x["latest_activity"], reverse=True)
+    
+    return render_template("teacher_practice_list.html", students=students_list)
+
+
+@app.route("/teacher/practice/<int:student_id>")
+@login_required
+@teacher_manager_admin_required
+def teacher_practice_detail(student_id):
+    student = db.session.get(User, student_id) or abort(404)
+    if student.role != "student":
+        abort(404)
+        
+    submissions = ExamSubmission.query.filter_by(student_id=student.id, exam_type="practice").order_by(ExamSubmission.started_at.desc()).all()
+    
+    return render_template("teacher_practice_detail.html", student=student, submissions=submissions)
+
+
 @app.route("/analytics/teacher")
 @login_required
 @teacher_manager_admin_required
