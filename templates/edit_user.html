@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Chỉnh sửa thông tin người dùng - EduCenter{% endblock %}
+{% block page_title %}Cập nhật tài khoản{% endblock %}
+
+{% block content %}
+<div x-data="{ 
+  role: '{{ user.role }}' 
+}">
+
+  <div class="page-header">
+    <div class="page-title-area">
+      <p>Cập nhật hồ sơ tài khoản: {{ user.fullname }}</p>
+      <h1>Chỉnh sửa Người dùng</h1>
+    </div>
+    <div style="display:flex; gap:var(--space-2)">
+      <form action="{{ url_for('reset_password', user_id=user.id) }}" method="POST" onsubmit="return confirm('Đặt lại mật khẩu tài khoản này về mặc định \'123456\'?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger">
+          <i data-lucide="key" style="width:14px;height:14px"></i>
+          Reset Mật khẩu
+        </button>
+      </form>
+      <a href="{{ url_for('manage_users', role_name='teachers' if user.role == 'teacher' else 'students') }}" class="btn btn-secondary">Quay lại</a>
+    </div>
+  </div>
+
+  <div class="card" style="max-width: 680px; margin: 0 auto">
+    <div class="card-header">
+      <h3 class="card-title">Hồ sơ tài khoản</h3>
+    </div>
+
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label class="form-label" for="role">Vai trò hệ thống *</label>
+        <select id="role" name="role" x-model="role" required>
+          <option value="student" {% if user.role == 'student' %}selected{% endif %}>Học sinh</option>
+          <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>Giáo viên</option>
+          <option value="parent" {% if user.role == 'parent' %}selected{% endif %}>Phụ huynh</option>
+          <option value="manager" {% if user.role == 'manager' %}selected{% endif %}>Nhân viên quản lý (Staff)</option>
+          {% if current_user.role == 'admin' %}
+            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Quản trị viên (Admin)</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="user_code">Mã số người dùng *</label>
+          <input type="text" id="user_code" name="user_code" value="{{ user.user_code }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fullname">Họ và tên *</label>
+          <input type="text" id="fullname" name="fullname" value="{{ user.fullname }}" required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="username">Tên đăng nhập *</label>
+          <input type="text" id="username" name="username" value="{{ user.username }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="phone">Số điện thoại liên hệ</label>
+          <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="09xx xxx xxx">
+        </div>
+      </div>
+
+      <!-- Role-dependent fields -->
+      <div class="form-group" x-show="role === 'student' || role === 'manager' || role === 'admin'">
+        <label class="form-label" for="position">Lớp học / Vị trí chức danh</label>
+        <input type="text" id="position" name="position" value="{{ user.position or '' }}" placeholder="Ví dụ: Lớp 10A2, Quản vụ">
+      </div>
+
+      <div class="form-group" x-show="role === 'teacher'">
+        <label class="form-label" for="salary_rate_per_hour">Mức thù lao dạy học / giờ (VNĐ)</label>
+        <input type="number" id="salary_rate_per_hour" name="salary_rate_per_hour" value="{{ user.salary_rate_per_hour or 0 }}">
+      </div>
+
+      <div class="form-group" x-show="role === 'parent'">
+        <label class="form-label" for="linked_student_id">Liên kết với Học sinh</label>
+        <select id="linked_student_id" name="linked_student_id">
+          <option value="">-- Chọn học sinh để liên kết --</option>
+          {% for student in students %}
+            <option value="{{ student.id }}" {% if user.linked_student_id == student.id %}selected{% endif %}>
+              {{ student.fullname }} ({{ student.user_code }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-top: var(--space-4)">
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_active" value="1" {% if user.is_active %}checked{% endif %}>
+          <span>Tài khoản đang được kích hoạt (Được đăng nhập và thao tác)</span>
+        </label>
+      </div>
+
+      <div style="margin-top: var(--space-6); display: flex; gap: var(--space-3)">
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="save" style="width:14px;height:14px"></i>
+          Lưu thay đổi
+        </button>
+        <a href="{{ url_for('manage_users', role_name='teachers' if user.role == 'teacher' else 'students') }}" class="btn btn-secondary">
+          Hủy bỏ
+        </a>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}

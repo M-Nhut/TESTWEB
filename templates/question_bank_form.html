@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Cập nhật' if bank else 'Tạo' }} Ngân Hàng Câu Hỏi - EduCenter{% endblock %}
+{% block page_title %}{{ 'Chỉnh sửa ngân hàng câu hỏi' if bank else 'Tạo ngân hàng câu hỏi mới' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Quản lý kho dữ liệu câu hỏi</p>
+    <h1>{{ 'Chỉnh sửa ngân hàng' if bank else 'Tạo ngân hàng mới' }}</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('question_bank_list') }}" class="btn btn-secondary">Quay lại</a>
+  </div>
+</div>
+
+<div class="card" style="max-width: 700px; margin: 0 auto">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label class="form-label" for="name">Tên ngân hàng câu hỏi *</label>
+      <input type="text" id="name" name="name" value="{{ bank.name if bank else '' }}" required placeholder="Ví dụ: Ngân hàng câu hỏi Toán 9 - Chương 1">
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="subject">Môn học *</label>
+        <select id="subject" name="subject" required>
+          <option value="">-- Chọn môn học --</option>
+          {% for sub in ['Toán', 'Tiếng Anh', 'Vật Lý', 'Hóa Học', 'Sinh Học', 'Ngữ Văn', 'Lịch Sử', 'Địa Lý', 'Tin Học'] %}
+            <option value="{{ sub }}" {% if bank and bank.subject == sub %}selected{% endif %}>{{ sub }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="grade">Khối / Lớp học</label>
+        <input type="text" id="grade" name="grade" value="{{ bank.grade if bank else '' }}" placeholder="Ví dụ: Lớp 9, Lớp 10">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="topic">Bài / Chủ đề chính</label>
+      <input type="text" id="topic" name="topic" value="{{ bank.topic if bank else '' }}" placeholder="Ví dụ: Căn bậc hai, Thức bị động">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="description">Mô tả thêm</label>
+      <textarea id="description" name="description" rows="3" placeholder="Ghi chú về nội dung ngân hàng...">{{ bank.description if bank else '' }}</textarea>
+    </div>
+
+    <div style="display:flex; gap:var(--space-3); margin-top:var(--space-6)">
+      <button type="submit" class="btn btn-primary">
+        <i data-lucide="save" style="width:14px;height:14px"></i>
+        {{ 'Cập nhật' if bank else 'Tạo ngân hàng' }}
+      </button>
+      <a href="{{ url_for('question_bank_list') }}" class="btn btn-secondary">Hủy bỏ</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

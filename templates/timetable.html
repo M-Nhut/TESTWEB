@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - EduCenter{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div x-data="{
+  anchorStr: '{{ anchor.isoformat() }}',
+  viewMode: '{{ view_mode }}',
+  navigate(days) {
+    if (days === 0) {
+      const today = new Date();
+      this.goToDate(today);
+      return;
+    }
+    const d = new Date(this.anchorStr);
+    d.setDate(d.getDate() + days);
+    this.goToDate(d);
+  },
+  navigateMonth(months) {
+    const d = new Date(this.anchorStr);
+    d.setMonth(d.getMonth() + months);
+    this.goToDate(d);
+  },
+  goToDate(d) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('view', this.viewMode);
+    urlParams.set('date', dateStr);
+    window.location.search = urlParams.toString();
+  },
+  changeView(mode) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('view', mode);
+    window.location.search = urlParams.toString();
+  }
+}">
+
+  <!-- Timetable controls toolbar -->
+  <div class="card" style="padding: var(--space-4) var(--space-6); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-4)">
+    
+    <!-- Left side: Date pagination -->
+    <div style="display: inline-flex; align-items: center; gap: var(--space-2)">
+      <button type="button" class="btn btn-secondary btn-sm btn-icon" @click="viewMode === 'week' ? navigate(-7) : navigateMonth(-1)" title="Lùi lại">
+        <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" @click="navigate(0)">
+        Hôm nay
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm btn-icon" @click="viewMode === 'week' ? navigate(7) : navigateMonth(1)" title="Tiến lên">
+        <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+      </button>
+      
+      <span style="font-weight: 600; font-size: var(--text-sm); margin-left: var(--space-2); color: var(--text-1)">
+        {% if view_mode == 'week' %}
+          Tuần {{ anchor.strftime('%W') }} ({{ occurrences[0].date.strftime('%d/%m') if occurrences else 'Từ' }} - {{ occurrences[-1].date.strftime('%d/%m') if occurrences else 'Đến' }})
+        {% else %}
+          Tháng {{ anchor.strftime('%m/%Y') }}
+        {% endif %}
+      </span>
+    </div>
+
+    <!-- Center side: Filters (Admin / Managers only) -->
+    <div style="display: inline-flex; align-items: center; gap: var(--space-4)">
+      
+      <!-- Datepicker selection -->
+      <div style="display: flex; align-items: center; gap: var(--space-2)">
+        <label class="form-label" style="margin-bottom:0; font-size: var(--text-xs)">Chọn ngày:</label>
+        <input type="date" value="{{ anchor.isoformat() }}" 
+               @change="goToDate(new Date($event.target.value))"
+               style="width:auto; padding: 4px var(--space-2); height:32px; font-size: var(--text-xs)">
+      </div>
+
+      <!-- Teacher filter (Only for admin/manager looking at /teacher-timetable) -->
+      {% if teachers %}
+      <div style="display: flex; align-items: center; gap: var(--space-2)">
+        <label class="form-label" style="margin-bottom:0; font-size: var(--text-xs)">Giáo viên:</label>
+        <select onchange="window.location.href='/teacher-timetable/' + this.value" style="width:180px; padding: 4px var(--space-2); height:32px; font-size: var(--text-xs)">
+          <option value="">-- Tất cả giáo viên --</option>
+          {% for t in teachers %}
+            <option value="{{ t.id }}" {% if selected_user and selected_user.id == t.id %}selected{% endif %}>{{ t.fullname }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <!-- Student filter (Only for admin/manager looking at /student-timetable) -->
+      {% if students %}
+      <div style="display: flex; align-items: center; gap: var(--space-2)">
+        <label class="form-label" style="margin-bottom:0; font-size: var(--text-xs)">Học sinh:</label>
+        <select onchange="window.location.href='/student-timetable/' + this.value" style="width:180px; padding: 4px var(--space-2); height:32px; font-size: var(--text-xs)">
+          <option value="">-- Tất cả học sinh --</option>
+          {% for s in students %}
+            <option value="{{ s.id }}" {% if selected_user and selected_user.id == s.id %}selected{% endif %}>{{ s.fullname }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      {% if selected_user %}
+        <span class="badge badge-active" style="padding: 4px 10px">
+          {{ ROLE_LABELS[selected_user.role] }}: {{ selected_user.fullname }}
+        </span>
+      {% endif %}
+    </div>
+
+    <!-- Right side: View Toggle -->
+    <div style="display: inline-flex; gap: var(--space-1)">
+      <button type="button" class="btn btn-sm {% if view_mode == 'week' %}btn-primary{% else %}btn-secondary{% endif %}" @click="changeView('week')">
+        Tuần
+      </button>
+      <button type="button" class="btn btn-sm {% if view_mode == 'month' %}btn-primary{% else %}btn-secondary{% endif %}" @click="changeView('month')">
+        Tháng
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Weekly Timetable Grid -->
+  {% if view_mode == 'week' %}
+    <div class="card" style="padding: 0; overflow: hidden">
+      {% include 'partials/timetable_grid.html' %}
+    </div>
+  {% else %}
+    <!-- Monthly List View of Occurrences -->
+    <div class="card" style="padding: 0; overflow: hidden">
+      <div class="card-header" style="padding: var(--space-4) var(--space-6)">
+        <h3 class="card-title">Danh sách buổi học trong tháng</h3>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Ngày học</th>
+            <th>Thứ</th>
+            <th>Khóa học</th>
+            <th>Giáo viên</th>
+            <th>Phòng</th>
+            <th>Khung giờ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if occurrences %}
+            {% for row in occurrences %}
+            <tr style="{% if row.date == today %}background: var(--accent-light){% endif %}">
+              <td style="font-weight: 500">{{ row.date.strftime('%d/%m/%Y') }}</td>
+              <td>{{ WEEKDAYS[row.date.weekday()] }}</td>
+              <td>
+                <a href="{{ url_for('course_detail', course_id=row.schedule.course.id) }}" style="font-weight: 600">
+                  {{ row.schedule.course.course_name }}
+                </a>
+              </td>
+              <td>{{ row.schedule.teacher.fullname }}</td>
+              <td><span class="badge badge-upcoming">{{ row.schedule.classroom }}</span></td>
+              <td>{{ row.schedule.start_time.strftime('%H:%M') }} - {{ row.schedule.end_time.strftime('%H:%M') }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+                Không có buổi học nào trong tháng này.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

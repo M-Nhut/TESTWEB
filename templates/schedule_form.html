@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Chỉnh sửa lịch học - EduCenter{% endblock %}
+{% block page_title %}Cập nhật lịch học{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Quản lý thời khóa biểu</p>
+    <h1>Chỉnh sửa Lịch học</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('schedules') }}" class="btn btn-secondary">Quay lại</a>
+  </div>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto">
+  <div class="card-header">
+    <h3 class="card-title">Chi tiết lịch học</h3>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label class="form-label" for="course_id">Khóa học *</label>
+      <select id="course_id" name="course_id" required>
+        {% for course in courses %}
+          <option value="{{ course.id }}" {% if schedule.course_id == course.id %}selected{% endif %}>
+            {{ course.course_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="teacher_id">Giáo viên giảng dạy *</label>
+      <select id="teacher_id" name="teacher_id" required>
+        {% for teacher in teachers %}
+          <option value="{{ teacher.id }}" {% if schedule.teacher_id == teacher.id %}selected{% endif %}>
+            {{ teacher.fullname }} ({{ teacher.user_code }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="classroom">Phòng học *</label>
+      <input type="text" id="classroom" name="classroom" value="{{ schedule.classroom }}" required placeholder="Ví dụ: Phòng A1">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="weekday">Thứ trong tuần *</label>
+      <select id="weekday" name="weekday" required>
+        <option value="0" {% if schedule.weekday == 0 %}selected{% endif %}>Thứ 2</option>
+        <option value="1" {% if schedule.weekday == 1 %}selected{% endif %}>Thứ 3</option>
+        <option value="2" {% if schedule.weekday == 2 %}selected{% endif %}>Thứ 4</option>
+        <option value="3" {% if schedule.weekday == 3 %}selected{% endif %}>Thứ 5</option>
+        <option value="4" {% if schedule.weekday == 4 %}selected{% endif %}>Thứ 6</option>
+        <option value="5" {% if schedule.weekday == 5 %}selected{% endif %}>Thứ 7</option>
+        <option value="6" {% if schedule.weekday == 6 %}selected{% endif %}>Chủ nhật</option>
+      </select>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="start_time">Giờ bắt đầu *</label>
+        <input type="time" id="start_time" name="start_time" value="{{ schedule.start_time.strftime('%H:%M') }}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="end_time">Giờ kết thúc *</label>
+        <input type="time" id="end_time" name="end_time" value="{{ schedule.end_time.strftime('%H:%M') }}" required>
+      </div>
+    </div>
+
+    <div style="margin-top: var(--space-6); display: flex; gap: var(--space-3)">
+      <button type="submit" class="btn btn-primary">
+        <i data-lucide="save" style="width:14px;height:14px"></i>
+        Cập nhật lịch
+      </button>
+      <a href="{{ url_for('schedules') }}" class="btn btn-secondary">Hủy</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

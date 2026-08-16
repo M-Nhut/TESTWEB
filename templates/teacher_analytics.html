@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Báo Cáo Phân Tích - EduCenter{% endblock %}
+{% block page_title %}Báo cáo & Phân tích học sinh{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Tổng quan năng lực & lịch sử tự luyện của học sinh</p>
+    <h1>Phân tích năng lực học sinh</h1>
+  </div>
+</div>
+
+<!-- Student Selector Bar -->
+<div class="card" style="padding:var(--space-4); margin-bottom:var(--space-6)">
+  <form method="GET" style="display:flex; gap:var(--space-3); align-items:center; flex-wrap:wrap">
+    <label style="font-weight:600">Chọn học sinh cần phân tích:</label>
+    <select name="student_id" onchange="this.form.submit()" style="width:280px">
+      <option value="">-- Chọn học sinh --</option>
+      {% for st in students %}
+        <option value="{{ st.id }}" {% if selected_student_id == st.id %}selected{% endif %}>
+          {{ st.fullname }} ({{ st.user_code }})
+        </option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if student_analytics %}
+  {% set st = student_analytics.student %}
+  {% set profiles = student_analytics.profiles %}
+  
+  <div class="card" style="margin-bottom:var(--space-6)">
+    <div style="display:flex; align-items:center; gap:var(--space-4)">
+      <img src="{{ url_for('serve_avatar', filename=st.avatar or 'default.jpg') }}" style="width:56px; height:56px; border-radius:50%; object-fit:cover">
+      <div>
+        <h2 style="margin:0">{{ st.fullname }}</h2>
+        <p style="font-size:var(--text-sm); color:var(--text-2); margin:0">Mã HS: {{ st.user_code }} · Phân loại: {{ st.position or 'Lớp chung' }} · SĐT Phụ huynh: {{ st.parent_phone or 'Chưa cập nhật' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profiles by subject grid -->
+  <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:var(--space-6)">
+    {% for sub, prof in profiles.items() %}
+      <div class="card" style="margin-bottom:0">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3)">
+          <span class="badge badge-open" style="font-size:var(--text-sm)">{{ sub }}</span>
+          <span class="badge" :class="{'badge-present': '{{ prof.adaptive_difficulty }}' === 'challenge', 'badge-upcoming': '{{ prof.adaptive_difficulty }}' === 'standard', 'badge-absent': '{{ prof.adaptive_difficulty }}' === 'reinforce'}">
+            {% if prof.adaptive_difficulty == 'reinforce' %}Cần củng cố{% elif prof.adaptive_difficulty == 'challenge' %}Thách thức{% else %}Chuẩn{% endif %}
+          </span>
+        </div>
+
+        <div style="background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:var(--radius-md); margin-bottom:var(--space-4)">
+          <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-1)">
+            <span style="font-size:var(--text-xs); color:var(--text-2)">Điểm TB bài luyện</span>
+            <strong style="color:var(--accent); font-size:var(--text-lg)">{{ prof.avg_score }}/10</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:var(--text-xs); color:var(--text-2)">
+            <span>Số bài làm: <strong>{{ prof.total_attempts }}</strong></span>
+            <span>Xu hướng: <strong>{% if prof.score_trend == 'improving' %}📈 Tiến bộ{% elif prof.score_trend == 'declining' %}📉 Giảm{% else %}➡️ Ổn định{% endif %}</strong></span>
+          </div>
+        </div>
+
+        <!-- Breakdown list -->
+        <div style="font-size:var(--text-xs); color:var(--text-2); display:flex; flex-direction:column; gap:6px">
+          <div style="display:flex; justify-content:space-between">
+            <span>Tỷ lệ đúng Nhận biết:</span>
+            <strong>{{ prof.nhan_biet_accuracy }}%</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between">
+            <span>Tỷ lệ đúng Vận dụng:</span>
+            <strong>{{ prof.van_dung_accuracy }}%</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between">
+            <span>Tỷ lệ đúng Vận dụng cao:</span>
+            <strong>{{ prof.van_dung_cao_accuracy }}%</strong>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="text-align:center; color:var(--text-3); padding:var(--space-10)">
+    <i data-lucide="users" style="width:48px; height:48px; margin-bottom:var(--space-3); color:var(--text-3)"></i>
+    <h3>Vui lòng chọn một học sinh để xem báo cáo phân tích chi tiết.</h3>
+  </div>
+{% endif %}
+{% endblock %}

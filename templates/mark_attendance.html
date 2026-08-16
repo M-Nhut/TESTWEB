@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Chấm điểm danh - EduCenter{% endblock %}
+{% block page_title %}Ghi nhận chuyên cần{% endblock %}
+
+{% block content %}
+<div x-data="{
+  statuses: {
+    {% for student in students %}
+    '{{ student.id }}': '{{ existing[student.id].status if student.id in existing else 'present' }}',
+    {% endfor %}
+  },
+  get absentCount() {
+    return Object.values(this.statuses).filter(s => s === 'absent').length;
+  },
+  get lateCount() {
+    return Object.values(this.statuses).filter(s => s === 'late').length;
+  }
+}">
+
+  <!-- Header Section with stats counters -->
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--space-6); flex-wrap:wrap; gap:var(--space-4)">
+    <div>
+      <p style="color: var(--text-3); font-size: var(--text-sm)">Môn: {{ course.subject }} · Lớp: {{ course.classroom or 'Chưa xếp phòng' }}</p>
+      <h1 style="margin:0">Điểm danh — {{ course.course_name }}</h1>
+      <p style="color:var(--text-2); font-size: var(--text-sm); margin-top: var(--space-1)">
+        <span x-text="Object.keys(statuses).length" style="font-weight:600"></span> học sinh ·
+        <span x-text="absentCount" style="color:var(--danger); font-weight:600"></span> vắng ·
+        <span x-text="lateCount" style="color:var(--warning); font-weight:600"></span> trễ
+      </p>
+    </div>
+    
+    <!-- Date picker to change date -->
+    <form method="GET" style="display: flex; align-items: center; gap: var(--space-2)">
+      <label class="form-label" style="margin-bottom:0">Ngày điểm danh:</label>
+      <input type="date" name="date" 
+             value="{{ date_value.isoformat() if date_value.isoformat is defined else date_value }}"
+             onchange="this.form.submit()" style="width:auto; padding: 6px var(--space-3)">
+    </form>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ date_value.isoformat() if date_value.isoformat is defined else date_value }}">
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Học sinh</th>
+            <th>Mã học sinh</th>
+            <th>Lớp / Chức vụ</th>
+            <th style="text-align: center; width: 90px;">Có mặt</th>
+            <th style="text-align: center; width: 90px;">Vắng</th>
+            <th style="text-align: center; width: 90px;">Đi trễ</th>
+            <th>Ghi chú</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if students %}
+            {% for student in students %}
+            <tr>
+              <td>
+                <div style="display:flex; align-items:center; gap:var(--space-3)">
+                  <img src="{{ url_for('serve_avatar', filename=student.avatar or 'default.jpg') }}"
+                       style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid var(--border)">
+                  <span style="font-weight: 500">{{ student.fullname }}</span>
+                </div>
+              </td>
+              <td style="color:var(--text-3)">{{ student.user_code }}</td>
+              <td>{{ student.position or 'Học sinh' }}</td>
+              
+              <!-- Có mặt Checkbox Column -->
+              <td style="text-align: center; vertical-align: middle;">
+                <label style="display: inline-flex; justify-content: center; align-items: center; cursor: pointer; margin: 0;">
+                  <input type="radio" name="status_{{ student.id }}" value="present"
+                         x-model="statuses['{{ student.id }}']" style="display: none;">
+                  <span class="attendance-check-box check-present"
+                        :class="statuses['{{ student.id }}'] === 'present' ? 'checked' : ''">
+                    <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                  </span>
+                </label>
+              </td>
+              
+              <!-- Vắng Checkbox Column -->
+              <td style="text-align: center; vertical-align: middle;">
+                <label style="display: inline-flex; justify-content: center; align-items: center; cursor: pointer; margin: 0;">
+                  <input type="radio" name="status_{{ student.id }}" value="absent"
+                         x-model="statuses['{{ student.id }}']" style="display: none;">
+                  <span class="attendance-check-box check-absent"
+                        :class="statuses['{{ student.id }}'] === 'absent' ? 'checked' : ''">
+                    <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                  </span>
+                </label>
+              </td>
+              
+              <!-- Đi trễ Checkbox Column -->
+              <td style="text-align: center; vertical-align: middle;">
+                <label style="display: inline-flex; justify-content: center; align-items: center; cursor: pointer; margin: 0;">
+                  <input type="radio" name="status_{{ student.id }}" value="late"
+                         x-model="statuses['{{ student.id }}']" style="display: none;">
+                  <span class="attendance-check-box check-late"
+                        :class="statuses['{{ student.id }}'] === 'late' ? 'checked' : ''">
+                    <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
+                  </span>
+                </label>
+              </td>
+              
+              <td>
+                <input type="text" name="note_{{ student.id }}"
+                       value="{{ existing[student.id].note if student.id in existing else '' }}"
+                       placeholder="Nhập ghi chú (nếu có)..." style="width:240px; padding: 6px var(--space-2)">
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+                Không có học sinh nào hoạt động trong lớp này.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:var(--space-5); display:flex; gap:var(--space-3)">
+      <button type="submit" class="btn btn-primary">
+        <i data-lucide="save" style="width:14px; height:14px"></i>
+        Lưu kết quả điểm danh
+      </button>
+      <a href="{{ url_for('attendance') }}" class="btn btn-secondary">Hủy bỏ</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

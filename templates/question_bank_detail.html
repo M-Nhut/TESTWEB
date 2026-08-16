@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+
+{% block title %}{{ bank.name }} - Ngân Hàng Câu Hỏi{% endblock %}
+{% block page_title %}{{ bank.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>{{ bank.subject }} {% if bank.grade %}· {{ bank.grade }}{% endif %} {% if bank.topic %}· {{ bank.topic }}{% endif %}</p>
+    <h1>{{ bank.name }}</h1>
+  </div>
+  
+  <div style="display:flex; gap:var(--space-3); align-items:center">
+    <a href="{{ url_for('import_questions_page') }}?bank_id={{ bank.id }}" class="btn btn-secondary" style="border-radius:9999px">
+      <i data-lucide="upload-cloud" style="width:14px;height:14px"></i>
+      Import thêm câu
+    </a>
+    <button type="button" class="btn btn-primary" style="border-radius:9999px" onclick="document.getElementById('add-question-modal').style.display='flex'">
+      <i data-lucide="plus" style="width:14px;height:14px"></i>
+      Thêm câu hỏi
+    </button>
+    <a href="{{ url_for('edit_question_bank', bank_id=bank.id) }}" class="btn btn-secondary" style="border-radius:9999px">
+      <i data-lucide="edit" style="width:14px;height:14px"></i>
+      Sửa
+    </a>
+    <form action="{{ url_for('delete_question_bank', bank_id=bank.id) }}" method="POST" style="display:inline" onsubmit="return confirm('Bạn có chắc chắn muốn XÓA HOÀN TOÀN ngân hàng câu hỏi \'{{ bank.name }}\'? Tất cả câu hỏi, đáp án và hình ảnh liên quan sẽ bị xóa sạch khỏi hệ thống!');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" class="btn btn-ghost" style="color:#ef4444; border-radius:9999px; background:rgba(239,68,68,0.1)" title="Xóa ngân hàng này">
+        <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+        Xóa ngân hàng
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Bank Summary Bar -->
+{% set diff_stats = bank.stats_by_difficulty() %}
+{% set type_stats = bank.stats_by_type() %}
+<div class="card" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:var(--space-4); align-items:center; border-radius:20px">
+  <div>
+    <span style="font-size:var(--text-xs); color:var(--text-3); display:block">TỔNG SỐ CÂU HỎI</span>
+    <span style="font-size:var(--text-2xl); font-weight:700; color:var(--accent)">{{ bank.question_count }} câu</span>
+  </div>
+  <div style="display:flex; gap:var(--space-4); flex-wrap:wrap">
+    <div>
+      <span style="font-size:var(--text-xs); color:var(--text-3); display:block">MỨC ĐỘ</span>
+      <span class="badge badge-present" style="border-radius:9999px">Nhận biết: {{ diff_stats.nhan_biet }}</span>
+      <span class="badge badge-upcoming" style="border-radius:9999px">Vận dụng: {{ diff_stats.van_dung }}</span>
+      <span class="badge badge-absent" style="border-radius:9999px">Vận dụng cao: {{ diff_stats.van_dung_cao }}</span>
+    </div>
+    <div>
+      <span style="font-size:var(--text-xs); color:var(--text-3); display:block">DẠNG CÂU</span>
+      <span class="badge badge-open" style="border-radius:9999px">Trắc nghiệm: {{ type_stats.single }}</span>
+      <span class="badge badge-open" style="border-radius:9999px">Nhiều đáp án: {{ type_stats.multiple_choice }}</span>
+      <span class="badge badge-open" style="border-radius:9999px">Đúng/Sai: {{ type_stats.true_false }}</span>
+      <span class="badge badge-open" style="border-radius:9999px">Trả lời ngắn: {{ type_stats.short_answer }}</span>
+      <span class="badge badge-open" style="border-radius:9999px">Tự luận: {{ type_stats.essay }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card" style="padding:var(--space-3) var(--space-4); margin-bottom:var(--space-4); border-radius:20px">
+  <form method="GET" style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:center">
+    <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Tìm từ khóa nội dung câu hỏi..." style="flex:1; min-width:200px; height:38px; border-radius:12px">
+    
+    <select name="difficulty" style="width:160px; height:38px; border-radius:12px">
+      <option value="">-- Mức độ --</option>
+      <option value="nhan_biet" {% if request.args.get('difficulty') == 'nhan_biet' %}selected{% endif %}>Nhận biết</option>
+      <option value="van_dung" {% if request.args.get('difficulty') == 'van_dung' %}selected{% endif %}>Vận dụng</option>
+      <option value="van_dung_cao" {% if request.args.get('difficulty') == 'van_dung_cao' %}selected{% endif %}>Vận dụng cao</option>
+    </select>
+
+    <select name="type" style="width:160px; height:38px; border-radius:12px">
+      <option value="">-- Dạng câu --</option>
+      <option value="single" {% if request.args.get('type') == 'single' %}selected{% endif %}>Trắc nghiệm (1 đáp án)</option>
+      <option value="multiple_choice" {% if request.args.get('type') == 'multiple_choice' %}selected{% endif %}>Trắc nghiệm (nhiều đáp án)</option>
+      <option value="true_false" {% if request.args.get('type') in ('true_false', 'truefalse') %}selected{% endif %}>Đúng / Sai THPT</option>
+      <option value="short_answer" {% if request.args.get('type') == 'short_answer' %}selected{% endif %}>Trả lời ngắn</option>
+      <option value="essay" {% if request.args.get('type') == 'essay' %}selected{% endif %}>Tự luận</option>
+    </select>
+
+    <button type="submit" class="btn btn-secondary btn-sm" style="border-radius:9999px">Lọc</button>
+    <a href="{{ url_for('question_bank_detail', bank_id=bank.id) }}" class="btn btn-ghost btn-sm" style="border-radius:9999px">Đặt lại</a>
+  </form>
+</div>
+
+<!-- Questions Manager Component -->
+<div x-data="bankQuestionsManager()" x-init="init()">
+  <template x-if="questions.length > 0">
+    <div style="display:flex; flex-direction:column; gap:var(--space-4)">
+      <template x-for="(q, qidx) in questions" :key="q.id">
+        <div class="card question-card" 
+             :id="'qcard-' + q.id"
+             style="border-left: 5px solid var(--accent); margin-bottom:0; border-radius:20px; box-shadow:0 4px 20px rgba(0,0,0,0.04)">
+          
+          <!-- ================= MODE 1: REVIEW MODE ================= -->
+          <div x-show="editingId !== q.id">
+            <!-- Header & Badges -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--space-3)">
+              <div style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap">
+                <span style="font-weight:700; font-size:var(--text-sm); color:var(--text-1)" x-text="'#' + (qidx + 1)"></span>
+                
+                <span class="badge badge-upcoming" style="border-radius:9999px" x-text="q.difficulty_level === 'nhan_biet' ? 'Nhận biết' : q.difficulty_level === 'van_dung' ? 'Vận dụng' : 'Vận dụng cao'"></span>
+                
+                <span class="badge badge-open" style="border-radius:9999px" x-text="q.question_type === 'single' ? 'Trắc nghiệm' : q.question_type === 'multiple_choice' ? 'Nhiều đáp án' : q.question_type === 'true_false' ? 'Đúng/Sai THPT' : q.question_type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'"></span>
+              </div>
+
+              <!-- Action Buttons -->
+              <div style="display:flex; gap:var(--space-2)">
+                <button type="button" class="btn btn-secondary btn-sm" style="color:var(--accent); border-radius:9999px" @click="startEdit(q)">
+                  <i data-lucide="edit-3" style="width:13px;height:13px"></i> Sửa
+                </button>
+
+                <button type="button" class="btn btn-ghost btn-icon btn-sm" style="color:var(--danger); border-radius:9999px" @click="deleteQuestion(q.id, qidx)">
+                  <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Context Block (if present) -->
+            <template x-if="q.context">
+              <div style="font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3); border-radius:14px; margin-bottom:var(--space-3); border-left:4px solid var(--accent)">
+                <strong>📖 Context / Đoạn văn:</strong> <span class="katex-render" x-html="formatRichText(q.context)"></span>
+              </div>
+            </template>
+
+            <!-- Extracted Image (if present) -->
+            <template x-if="q.image_url">
+              <div style="margin-bottom:var(--space-3)">
+                <img :src="q.image_url" style="max-height:180px; max-width:100%; border-radius:14px; border:1px solid var(--border)">
+              </div>
+            </template>
+
+            <!-- Question Text -->
+            <div class="katex-render" style="font-weight:500; font-size:var(--text-md); margin-bottom:var(--space-3); line-height:1.6" x-html="formatRichText(q.question_text)"></div>
+
+            <!-- SINGLE CHOICE OPTIONS (Interactive Click ONLY on Button Badge) -->
+            <template x-if="q.question_type === 'single' && q.options && q.options.length > 0">
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-3)">
+                <template x-for="(opt, oidx) in q.options" :key="opt.id || oidx">
+                  <div style="padding:10px 20px; border-radius:9999px; font-size:var(--text-sm); display:flex; align-items:center; justify-content:space-between; transition:all 150ms ease"
+                       :style="opt.is_correct ? 'border:2px solid var(--success); background:var(--success-light); font-weight:600' : 'border:1px solid var(--border); background:var(--surface)'">
+                    <div style="flex:1; padding-right:8px">
+                      <span style="font-weight:700; color:var(--text-2); margin-right:6px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
+                      <span class="katex-render" x-html="formatRichText(opt.option_text || opt.text)"></span>
+                    </div>
+                    <div>
+                      <button type="button" class="btn btn-sm"
+                              style="border-radius:9999px; padding:4px 14px; font-size:12px"
+                              :class="opt.is_correct ? 'btn-success' : 'btn-secondary'"
+                              @click.stop="toggleOption(q.id, oidx, true)">
+                        <span x-show="opt.is_correct">✓ Đáp án đúng</span>
+                        <span x-show="!opt.is_correct">○ Chọn</span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- MULTIPLE CHOICE OPTIONS (Interactive Click ONLY on Button Badge) -->
+            <template x-if="q.question_type === 'multiple_choice' && q.options && q.options.length > 0">
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-3)">
+                <template x-for="(opt, oidx) in q.options" :key="opt.id || oidx">
+                  <div style="padding:10px 20px; border-radius:9999px; font-size:var(--text-sm); display:flex; align-items:center; justify-content:space-between; transition:all 150ms ease"
+                       :style="opt.is_correct ? 'border:2px solid var(--success); background:var(--success-light); font-weight:600' : 'border:1px solid var(--border); background:var(--surface)'">
+                    <div style="flex:1; padding-right:8px">
+                      <span style="font-weight:700; color:var(--text-2); margin-right:6px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
+                      <span class="katex-render" x-html="formatRichText(opt.option_text || opt.text)"></span>
+                    </div>
+                    <div>
+                      <button type="button" class="btn btn-sm"
+                              style="border-radius:9999px; padding:4px 14px; font-size:12px"
+                              :class="opt.is_correct ? 'btn-success' : 'btn-secondary'"
+                              @click.stop="toggleOption(q.id, oidx, false)">
+                        <span x-show="opt.is_correct">☑ Đáp án đúng</span>
+                        <span x-show="!opt.is_correct">☐ Chọn</span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- TRUE/FALSE STATEMENTS THPT QUỐC GIA (Interactive Click ONLY on Button Badges) -->
+            <template x-if="q.question_type === 'true_false' && q.options && q.options.length > 0">
+              <div style="display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-3)">
+                <template x-for="(stmt, sidx) in q.options" :key="stmt.id || sidx">
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; border:1.5px solid var(--border); border-radius:9999px; font-size:var(--text-sm); background:var(--surface)">
+                    <div style="flex:1; padding-right:var(--space-3)">
+                      <span class="katex-render" x-html="formatRichText(stmt.option_text || stmt.text)"></span>
+                    </div>
+                    <div style="display:flex; gap:6px; align-items:center">
+                      <button type="button" class="btn btn-sm"
+                              :class="stmt.is_correct === true ? 'btn-success' : 'btn-secondary'"
+                              style="padding:3px 14px; font-size:12px; height:30px; border-radius:9999px"
+                              @click.stop="setTrueFalseOption(q.id, sidx, true)">
+                        ✓ Đúng
+                      </button>
+                      <button type="button" class="btn btn-sm"
+                              :class="stmt.is_correct === false ? 'btn-danger' : 'btn-secondary'"
+                              style="padding:3px 14px; font-size:12px; height:30px; border-radius:9999px"
+                              @click.stop="setTrueFalseOption(q.id, sidx, false)">
+                        ✕ Sai
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- SHORT ANSWER DISPLAY IN REVIEW MODE -->
+            <template x-if="q.question_type === 'short_answer'">
+              <div style="margin-bottom:var(--space-3); font-size:var(--text-sm); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:9999px">
+                <strong>Đáp án mẫu:</strong>
+                <span x-html="q.options && q.options.length > 0 ? q.options.map(o => formatRichText(o.option_text || o.text)).join(' | ') : 'Chưa có đáp án mẫu'"></span>
+              </div>
+            </template>
+
+            <!-- ESSAY DISPLAY IN REVIEW MODE -->
+            <template x-if="q.question_type === 'essay'">
+              <div style="margin-bottom:var(--space-3); font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:9999px">
+                📝 <strong>Tự luận:</strong> Bài làm mở, giáo viên sẽ trực tiếp đọc và chấm điểm.
+              </div>
+            </template>
+
+            <!-- Explanation Display -->
+            <template x-if="q.explanation">
+              <div style="font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:20px; margin-top:var(--space-2)">
+                💡 <strong>Giải thích:</strong> <div class="katex-render" style="white-space:pre-line; display:inline-block;" x-html="formatRichText(q.explanation)"></div>
+              </div>
+            </template>
+          </div>
+
+          <!-- ================= MODE 2: INLINE EDIT MODE (IN-PLACE CARD EDITOR) ================= -->
+          <div x-show="editingId === q.id" style="background:var(--surface); border:2px solid var(--accent); border-radius:18px; padding:var(--space-4)">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3); border-bottom:1px solid var(--border); padding-bottom:var(--space-2)">
+              <h4 style="margin:0; color:var(--accent)" x-text="'✏️ Chỉnh sửa trực tiếp Câu #' + (qidx + 1)"></h4>
+              <span class="badge badge-open" style="border-radius:9999px">Inline Editing Mode</span>
+            </div>
+
+            <template x-if="editingForm">
+              <div>
+                <!-- Context edit -->
+                <div class="form-group">
+                  <label class="form-label">Context / Đoạn văn (nếu có)</label>
+                  <textarea x-model="editingForm.context" rows="2" style="border-radius:12px" placeholder="Ví dụ: Cho đoạn thông tin sau..."></textarea>
+                </div>
+
+                <!-- Question Text edit -->
+                <div class="form-group">
+                  <label class="form-label">Nội dung câu hỏi *</label>
+                  <textarea x-model="editingForm.question_text" rows="3" style="border-radius:12px" required placeholder="Nhập nội dung câu hỏi..."></textarea>
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Loại câu hỏi *</label>
+                    <select x-model="editingForm.question_type" style="border-radius:12px">
+                      <option value="single">Trắc nghiệm (1 đáp án)</option>
+                      <option value="multiple_choice">Trắc nghiệm (nhiều đáp án)</option>
+                      <option value="true_false">Đúng / Sai (nhiều ý a, b, c, d)</option>
+                      <option value="short_answer">Trả lời ngắn</option>
+                      <option value="essay">Tự luận</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Mức độ *</label>
+                    <select x-model="editingForm.difficulty_level" style="border-radius:12px">
+                      <option value="nhan_biet">Nhận biết</option>
+                      <option value="van_dung">Vận dụng</option>
+                      <option value="van_dung_cao">Vận dụng cao</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Options editor for single & multiple_choice in EDIT MODE -->
+                <template x-if="editingForm.question_type === 'single' || editingForm.question_type === 'multiple_choice'">
+                  <div style="margin-bottom:var(--space-4)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-2)">
+                      <label class="form-label" style="margin:0">Phương án lựa chọn (Bấm nút bên phải để chọn đáp án đúng)</label>
+                      <button type="button" class="btn btn-ghost btn-sm" style="border-radius:9999px" @click="addOptionToForm()">+ Thêm phương án</button>
+                    </div>
+                    <template x-for="(opt, oidx) in editingForm.options" :key="oidx">
+                      <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2)">
+                        <span style="font-weight:600; width:24px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
+                        <input type="text" x-model="opt.option_text" style="flex:1; border-radius:12px" placeholder="Nội dung phương án...">
+                        
+                        <!-- Dedicated Clickable Button for Setting Correct Answer in EDIT MODE -->
+                        <button type="button" class="btn btn-sm"
+                                style="border-radius:9999px; padding:3px 12px; font-size:11px; white-space:nowrap"
+                                :class="opt.is_correct ? 'btn-success' : 'btn-secondary'"
+                                @click="toggleOptionCorrectInForm(oidx)">
+                          <span x-show="opt.is_correct">✓ Đáp án đúng</span>
+                          <span x-show="!opt.is_correct">○ Chọn</span>
+                        </button>
+
+                        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger); border-radius:9999px" @click="editingForm.options.splice(oidx, 1)">✕</button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <!-- True/False statements editor (a, b, c, d) in EDIT MODE -->
+                <template x-if="editingForm.question_type === 'true_false'">
+                  <div style="margin-bottom:var(--space-4)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-2)">
+                      <label class="form-label" style="margin:0">Các phát biểu Đúng/Sai (THPT Quốc gia)</label>
+                      <button type="button" class="btn btn-ghost btn-sm" style="border-radius:9999px" @click="addStatementToForm()">+ Thêm phát biểu</button>
+                    </div>
+                    <template x-for="(stmt, sidx) in editingForm.statements" :key="sidx">
+                      <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2)">
+                        <strong style="width:24px" x-text="stmt.id + ')'"></strong>
+                        <input type="text" x-model="stmt.text" style="flex:1; border-radius:12px" placeholder="Nội dung phát biểu...">
+                        
+                        <!-- Dedicated Buttons for True / False Selection in EDIT MODE -->
+                        <button type="button" class="btn btn-sm"
+                                :class="stmt.answer === true ? 'btn-success' : 'btn-secondary'"
+                                style="padding:2px 10px; font-size:11px; border-radius:9999px"
+                                @click="stmt.answer = true">
+                          ✓ Đúng
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                                :class="stmt.answer === false ? 'btn-danger' : 'btn-secondary'"
+                                style="padding:2px 10px; font-size:11px; border-radius:9999px"
+                                @click="stmt.answer = false">
+                          ✕ Sai
+                        </button>
+
+                        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger); border-radius:9999px" @click="editingForm.statements.splice(sidx, 1)">✕</button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <!-- Short Answer editor in EDIT MODE -->
+                <template x-if="editingForm.question_type === 'short_answer'">
+                  <div style="margin-bottom:var(--space-4)">
+                    <label class="form-label">Đáp án ngắn chấp nhận được (Phân cách bằng dấu |)</label>
+                    <input type="text" style="border-radius:12px"
+                           :value="editingForm.options ? editingForm.options.map(o => o.option_text).join(' | ') : ''"
+                           @input="updateShortAnswerInForm($event.target.value)"
+                           placeholder="Ví dụ: 25 | hai muoi lam | 25.0">
+                  </div>
+                </template>
+
+                <!-- Image URL edit -->
+                <div class="form-group">
+                  <label class="form-label">Hình ảnh đính kèm (URL / Đường dẫn)</label>
+                  <input type="text" x-model="editingForm.image_url" style="border-radius:12px" placeholder="/static/uploads/questions/img_sample.png">
+                </div>
+
+                <!-- Explanation edit -->
+                <div class="form-group">
+                  <label class="form-label">Lời giải / Giải thích chi tiết</label>
+                  <textarea x-model="editingForm.explanation" rows="2" style="border-radius:12px" placeholder="Nhập lời giải..."></textarea>
+                </div>
+
+                <!-- Action Buttons for Inline Edit -->
+                <div style="display:flex; justify-content:flex-end; gap:var(--space-3); margin-top:var(--space-4); border-top:1px solid var(--border); padding-top:var(--space-3)">
+                  <button type="button" class="btn btn-secondary" style="border-radius:9999px" @click="cancelEdit()">Hủy</button>
+                  <button type="button" class="btn btn-primary" style="border-radius:9999px" @click="saveEdit(q.id, qidx)">Lưu thay đổi</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+        </div>
+      </template>
+    </div>
+  </template>
+
+  <template x-if="questions.length === 0">
+    <div class="card" style="text-align:center; color:var(--text-3); padding:var(--space-8); border-radius:20px">
+      Chưa có câu hỏi nào trong ngân hàng này phù hợp với bộ lọc.
+    </div>
+  </template>
+</div>
+
+<!-- Add Question Modal -->
+<div id="add-question-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center">
+  <div class="card" style="width:90%; max-width:650px; max-height:90vh; overflow-y:auto; border-radius:24px">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4)">
+      <h3 style="margin:0">Thêm câu hỏi mới vào ngân hàng</h3>
+      <button type="button" class="btn btn-ghost btn-sm" style="border-radius:9999px" onclick="document.getElementById('add-question-modal').style.display='none'">✕</button>
+    </div>
+
+    <form action="{{ url_for('add_bank_question', bank_id=bank.id) }}" method="POST" x-data="{ qtype: 'single' }">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Loại câu hỏi *</label>
+          <select name="question_type" x-model="qtype" required style="border-radius:12px">
+            <option value="single">Trắc nghiệm (1 đáp án)</option>
+            <option value="multiple_choice">Trắc nghiệm (nhiều đáp án)</option>
+            <option value="true_false">Đúng / Sai (nhiều ý a,b,c,d)</option>
+            <option value="short_answer">Trả lời ngắn</option>
+            <option value="essay">Tự luận</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Mức độ *</label>
+          <select name="difficulty_level" required style="border-radius:12px">
+            <option value="nhan_biet">Nhận biết</option>
+            <option value="van_dung">Vận dụng</option>
+            <option value="van_dung_cao">Vận dụng cao</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Context / Đoạn văn (nếu có)</label>
+        <input type="text" name="context" style="border-radius:12px" placeholder="Ví dụ: Cho đoạn thông tin sau...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Nội dung câu hỏi *</label>
+        <textarea name="question_text" rows="3" required style="border-radius:12px" placeholder="Nhập nội dung câu hỏi..."></textarea>
+      </div>
+
+      <!-- Multiple choice options -->
+      <div x-show="qtype === 'single' || qtype === 'multiple_choice'" style="margin-bottom:var(--space-4)">
+        <label class="form-label">Danh sách phương án (Chọn đáp án đúng)</label>
+        {% for idx, letter in [(0,'A'), (1,'B'), (2,'C'), (3,'D')] %}
+          <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2)">
+            <input :type="qtype === 'single' ? 'radio' : 'checkbox'" name="correct_option" value="{{ idx }}" {% if idx == 0 %}checked{% endif %}>
+            <span style="font-weight:600; width:20px">{{ letter }}.</span>
+            <input type="text" name="option_text" placeholder="Nội dung phương án {{ letter }}..." style="flex:1; border-radius:12px">
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- True/False options -->
+      <div x-show="qtype === 'true_false'" style="margin-bottom:var(--space-4)">
+        <label class="form-label">Các ý Đúng / Sai</label>
+        {% for idx, letter in [(0,'a'), (1,'b'), (2,'c'), (3,'d')] %}
+          <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2)">
+            <strong style="width:20px">{{ letter }})</strong>
+            <input type="text" name="option_text" placeholder="Nội dung phát biểu {{ letter }}..." style="flex:1; border-radius:12px">
+            <select name="correct_option" style="width:110px; border-radius:12px">
+              <option value="{{ idx }}">Đúng</option>
+              <option value="">Sai</option>
+            </select>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Short Answer input -->
+      <div x-show="qtype === 'short_answer'" style="margin-bottom:var(--space-4)">
+        <label class="form-label">Đáp án mẫu chấp nhận được (ngăn cách bằng dấu |)</label>
+        <input type="text" name="short_answers" style="border-radius:12px" placeholder="Ví dụ: Hà Nội | ha noi | Ha Noi">
+      </div>
+
+      <!-- Essay notice -->
+      <div x-show="qtype === 'essay'" style="margin-bottom:var(--space-4); font-size:12px; color:var(--text-2); background:var(--surface-2); padding:var(--space-2) var(--space-3); border-radius:12px">
+        📝 <strong>Câu hỏi tự luận:</strong> Không yêu cầu nhập đáp án. Giáo viên sẽ trực tiếp đọc bài làm và chấm điểm.
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Giải thích / Lời giải chi tiết</label>
+        <textarea name="explanation" rows="2" style="border-radius:12px" placeholder="Lời giải chi tiết nếu có..."></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:var(--space-3); margin-top:var(--space-4)">
+        <button type="button" class="btn btn-secondary" style="border-radius:9999px" onclick="document.getElementById('add-question-modal').style.display='none'">Hủy</button>
+        <button type="submit" class="btn btn-primary" style="border-radius:9999px">Lưu câu hỏi</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function bankQuestionsManager() {
+  return {
+    questions: {{ questions_json | tojson | safe }},
+    editingId: null,
+    editingForm: null,
+
+    init() {
+      this.$nextTick(() => {
+        if (window.renderKaTeX) window.renderKaTeX();
+      });
+    },
+
+    startEdit(q) {
+      this.editingId = q.id;
+      this.editingForm = JSON.parse(JSON.stringify(q));
+      if (!this.editingForm.options) this.editingForm.options = [];
+      if (!this.editingForm.statements) this.editingForm.statements = [];
+    },
+
+    cancelEdit() {
+      this.editingId = null;
+      this.editingForm = null;
+    },
+
+    addOptionToForm() {
+      if (!this.editingForm.options) this.editingForm.options = [];
+      const idx = this.editingForm.options.length;
+      this.editingForm.options.push({
+        option_text: '',
+        is_correct: false,
+        order_index: idx
+      });
+    },
+
+    addStatementToForm() {
+      if (!this.editingForm.statements) this.editingForm.statements = [];
+      const idx = this.editingForm.statements.length;
+      const labels = ['a', 'b', 'c', 'd', 'e', 'f'];
+      this.editingForm.statements.push({
+        id: labels[idx] || `s${idx+1}`,
+        text: '',
+        answer: null
+      });
+    },
+
+    toggleOptionCorrectInForm(oidx) {
+      if (!this.editingForm || !this.editingForm.options) return;
+      if (this.editingForm.question_type === 'single') {
+        this.editingForm.options.forEach((o, i) => o.is_correct = (i === oidx));
+      } else {
+        this.editingForm.options[oidx].is_correct = !this.editingForm.options[oidx].is_correct;
+      }
+    },
+
+    updateShortAnswerInForm(val) {
+      const parts = val.split('|').map(p => p.trim()).filter(Boolean);
+      this.editingForm.options = parts.map((p, idx) => ({
+        option_text: p,
+        is_correct: true,
+        order_index: idx
+      }));
+    },
+
+    formatRichText(text) {
+      if (!text) return '';
+      let str = String(text);
+      // Convert Markdown syntax ![alt](url) to HTML <img src="url" />
+      str = str.replace(/!\[(.*?)\]\((.*?)\)/g, (match, p1, p2) => {
+        let src = p2 || p1;
+        return `<img src="${src}" class="docx-math-img" style="vertical-align:middle; max-height:55px; margin:2px 4px; display:inline-block; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.1);" alt="công thức" />`;
+      });
+      // Style any bare <img> tags from docx parser that lack the class
+      str = str.replace(/<img\s+src="([^"]+)"(?!\s+class="docx-math-img")/g,
+        '<img src="$1" class="docx-math-img" style="vertical-align:middle; max-height:55px; margin:2px 4px; display:inline-block;"');
+      // Convert newlines to <br> for multi-line content
+      str = str.replace(/\n/g, '<br>');
+      return str;
+    },
+
+    toggleOption(qId, optionIdx, isSingle) {
+      const q = this.questions.find(item => item.id === qId);
+      if (!q || !q.options) return;
+
+      if (isSingle) {
+        q.options.forEach((opt, i) => {
+          opt.is_correct = (i === optionIdx);
+        });
+      } else {
+        q.options[optionIdx].is_correct = !q.options[optionIdx].is_correct;
+      }
+
+      fetch(`/questions/${qId}/toggle-answer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          option_index: optionIdx,
+          is_correct: q.options[optionIdx].is_correct
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.question) {
+          const idx = this.questions.findIndex(item => item.id === qId);
+          if (idx !== -1) this.questions[idx] = data.question;
+          this.$nextTick(() => {
+            if (window.renderKaTeX) window.renderKaTeX();
+          });
+        }
+      });
+    },
+
+    setStatementAnswer(qId, sIdx, ansValue) {
+      const q = this.questions.find(item => item.id === qId);
+      if (!q || !q.statements || !q.statements[sIdx]) return;
+      q.statements[sIdx].answer = ansValue;
+
+      fetch(`/questions/${qId}/toggle-answer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          option_index: sIdx,
+          statement_id: q.statements[sIdx].id,
+          is_correct: ansValue
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.question) {
+          const idx = this.questions.findIndex(item => item.id === qId);
+          if (idx !== -1) this.questions[idx] = data.question;
+          this.$nextTick(() => {
+            if (window.renderKaTeX) window.renderKaTeX();
+          });
+        }
+      });
+    },
+
+    saveEdit(qId, qIdx) {
+      if (!this.editingForm) return;
+
+      fetch(`/questions/${qId}/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(this.editingForm)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.question) {
+          this.questions[qIdx] = data.question;
+          this.editingId = null;
+          this.editingForm = null;
+          this.$nextTick(() => {
+            if (window.renderKaTeX) window.renderKaTeX();
+          });
+        } else {
+          alert('Lỗi: ' + (data.message || 'Không thể lưu câu hỏi.'));
+        }
+      })
+      .catch(err => {
+        alert('Có lỗi xảy ra khi lưu câu hỏi.');
+      });
+    },
+
+    deleteQuestion(qId, qIdx) {
+      if (confirm('Bạn có chắc chắn muốn xóa câu hỏi này khỏi ngân hàng?')) {
+        fetch(`/questions/${qId}/delete`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+          }
+        })
+        .then(() => {
+          this.questions.splice(qIdx, 1);
+        });
+      }
+    }
+  }
+}
+</script>
+
+<style>
+.btn-success {
+  background: var(--success);
+  color: white;
+  border: none;
+}
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border: none;
+}
+</style>
+{% endblock %}

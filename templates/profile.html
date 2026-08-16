@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Hồ sơ cá nhân - EduCenter{% endblock %}
+{% block page_title %}Thông tin tài khoản{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Thông tin cá nhân & Bảo mật</p>
+    <h1>Hồ sơ của bạn</h1>
+  </div>
+</div>
+
+<div class="form-grid-2">
+  
+  <!-- Cột 1: Thông tin cá nhân -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Cập nhật hồ sơ</h3>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data">
+      {{ profile_form.hidden_tag() }}
+      
+      <!-- Avatar Preview & Selector -->
+      <div style="display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-6)">
+        <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0">
+          <img id="avatar-preview" src="{{ image_file }}" 
+               style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-strong)">
+        </div>
+        <div style="flex: 1">
+          <label class="form-label" style="margin-bottom: var(--space-1)">Ảnh đại diện mới</label>
+          {{ profile_form.avatar(class="form-control", onchange="previewImage(event)", style="font-size: var(--text-xs); border: none; padding: 0") }}
+          {% if profile_form.avatar.errors %}
+            {% for error in profile_form.avatar.errors %}
+              <div class="form-hint" style="color: var(--danger)">{{ error }}</div>
+            {% endfor %}
+          {% endif %}
+          <div class="form-hint">Định dạng JPG, PNG, JPEG.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        {{ profile_form.fullname.label(class="form-label") }}
+        {{ profile_form.fullname() }}
+        {% if profile_form.fullname.errors %}
+          {% for error in profile_form.fullname.errors %}
+            <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          {{ profile_form.username.label(class="form-label") }}
+          {{ profile_form.username() }}
+          {% if profile_form.username.errors %}
+            {% for error in profile_form.username.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <div class="form-group">
+          {{ profile_form.birth_date.label(class="form-label") }}
+          {{ profile_form.birth_date(type="date") }}
+          {% if profile_form.birth_date.errors %}
+            {% for error in profile_form.birth_date.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          {{ profile_form.phone.label(class="form-label") }}
+          {{ profile_form.phone() }}
+          {% if profile_form.phone.errors %}
+            {% for error in profile_form.phone.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <div class="form-group">
+          {{ profile_form.parent_phone.label(class="form-label") }}
+          {{ profile_form.parent_phone(placeholder="Bỏ trống nếu không áp dụng") }}
+          {% if profile_form.parent_phone.errors %}
+            {% for error in profile_form.parent_phone.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        {{ profile_form.position.label(class="form-label") }}
+        {{ profile_form.position() }}
+        {% if profile_form.position.errors %}
+          {% for error in profile_form.position.errors %}
+            <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div style="margin-top: var(--space-4)">
+        {{ profile_form.submit_profile(class="btn btn-primary") }}
+      </div>
+    </form>
+  </div>
+
+  <!-- Cột 2: Đổi mật khẩu -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Thay đổi mật khẩu</h3>
+    </div>
+    
+    <form method="POST">
+      {{ password_form.hidden_tag() }}
+      
+      <div class="form-group">
+        {{ password_form.old_password.label(class="form-label") }}
+        {{ password_form.old_password(placeholder="••••••••") }}
+        {% if password_form.old_password.errors %}
+          {% for error in password_form.old_password.errors %}
+            <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        {{ password_form.new_password.label(class="form-label") }}
+        {{ password_form.new_password(placeholder="Tối thiểu 6 ký tự") }}
+        {% if password_form.new_password.errors %}
+          {% for error in password_form.new_password.errors %}
+            <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        {{ password_form.confirm_password.label(class="form-label") }}
+        {{ password_form.confirm_password(placeholder="Xác nhận mật khẩu mới") }}
+        {% if password_form.confirm_password.errors %}
+          {% for error in password_form.confirm_password.errors %}
+            <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div style="margin-top: var(--space-4)">
+        {{ password_form.submit_password(class="btn btn-primary") }}
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function previewImage(event) {
+    const input = event.target;
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('avatar-preview').src = e.target.result;
+      }
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+</script>
+{% endblock %}

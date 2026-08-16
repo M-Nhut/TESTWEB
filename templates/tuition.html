@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Học phí - EduCenter{% endblock %}
+{% block page_title %}Quản lý Học phí{% endblock %}
+
+{% block content %}
+<div x-data="{ 
+  editOpen: false, 
+  editAction: '', 
+  studentName: '',
+  courseName: '',
+  amount: 0, 
+  status: 'paid', 
+  note: '' 
+}">
+
+  <div class="page-header">
+    <div class="page-title-area">
+      <p>Theo dõi học phí & thanh toán học viên</p>
+      <h1>Học phí Lớp học</h1>
+    </div>
+  </div>
+
+  <!-- Form ghi nhận học phí mới (Chỉ dành cho Admin / Manager khi không readonly) -->
+  {% if not readonly %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Ghi nhận học phí mới</h3>
+    </div>
+    
+    <form action="{{ url_for('tuition') }}" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4); align-items: flex-end">
+        
+        <div class="form-group" style="margin-bottom: 0">
+          <label class="form-label" for="student_id">Chọn học sinh</label>
+          <select id="student_id" name="student_id" required>
+            <option value="">-- Học sinh đóng học phí --</option>
+            {% for student in students %}
+              <option value="{{ student.id }}">{{ student.fullname }} ({{ student.user_code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0">
+          <label class="form-label" for="course_id">Lớp học</label>
+          <select id="course_id" name="course_id" required>
+            <option value="">-- Chọn khóa học --</option>
+            {% for course in courses %}
+              <option value="{{ course.id }}">{{ course.course_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0">
+          <label class="form-label" for="amount">Số tiền đóng</label>
+          <input type="number" id="amount" name="amount" placeholder="Ví dụ: 1000000" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0">
+          <label class="form-label" for="payment_type">Hình thức</label>
+          <select id="payment_type" name="payment_type">
+            <option value="monthly">Theo tháng</option>
+            <option value="full_course">Trọn khóa</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0">
+          <label class="form-label" for="status">Trạng thái</label>
+          <select id="status" name="status">
+            <option value="paid">Đã thanh toán</option>
+            <option value="partial">Thanh toán một phần</option>
+            <option value="unpaid">Chưa đóng</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0">
+          <label class="form-label" for="payment_date">Ngày thu</label>
+          <input type="date" id="payment_date" name="payment_date" value="{{ today_date or '' }}">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0; grid-column: span 2">
+          <label class="form-label" for="note">Ghi chú</label>
+          <input type="text" id="note" name="note" placeholder="Nhập ghi chú thêm...">
+        </div>
+
+        <div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; height: 38px">
+            Ghi nhận phiếu
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Danh sách phiếu thu học phí -->
+  <div class="card" style="padding: 0; overflow: hidden">
+    <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+      <h3 class="card-title">Lịch sử giao dịch học phí</h3>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Ngày đóng</th>
+          <th>Học sinh</th>
+          <th>Khóa học</th>
+          <th>Hình thức</th>
+          <th class="text-right">Số tiền</th>
+          <th>Trạng thái</th>
+          <th>Ghi chú</th>
+          {% if not readonly %}
+          <th class="text-right">Thao tác</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% if payments %}
+          {% for payment in payments %}
+          <tr>
+            <td style="font-weight: 500">{{ payment.payment_date.strftime('%d/%m/%Y') }}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:var(--space-2)">
+                <img src="{{ url_for('serve_avatar', filename=payment.student.avatar or 'default.jpg') }}" 
+                     style="width:24px; height:24px; border-radius:50%; object-fit:cover">
+                <span style="font-weight: 500">{{ payment.student.fullname }}</span>
+              </div>
+            </td>
+            <td>
+              <a href="{{ url_for('course_detail', course_id=payment.course.id) }}" style="font-weight: 600">
+                {{ payment.course.course_name }}
+              </a>
+            </td>
+            <td><span style="font-size: var(--text-xs); color: var(--text-2)">{{ TUITION_LABELS[payment.payment_type] }}</span></td>
+            <td class="money text-right" style="font-weight: 600">{{ money(payment.amount) }}đ</td>
+            <td>
+              {% if payment.status == 'paid' %}
+                <span class="badge badge-paid">Đã đóng đủ</span>
+              {% elif payment.status == 'partial' %}
+                <span class="badge badge-partial">Đóng một phần</span>
+              {% else %}
+                <span class="badge badge-unpaid">Chưa đóng</span>
+              {% endif %}
+            </td>
+            <td style="font-size: var(--text-xs); color: var(--text-2)">{{ payment.note or '-' }}</td>
+            {% if not readonly %}
+            <td class="text-right">
+              <button type="button" class="btn btn-ghost btn-sm" style="color:var(--accent)"
+                      @click="
+                        editAction = '{{ url_for('edit_tuition', payment_id=payment.id) }}';
+                        studentName = '{{ payment.student.fullname }}';
+                        courseName = '{{ payment.course.course_name }}';
+                        amount = {{ payment.amount }};
+                        status = '{{ payment.status }}';
+                        note = '{{ payment.note or '' }}';
+                        editOpen = true;
+                      ">
+                Chỉnh sửa
+              </button>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="{% if not readonly %}8{% else %}7{% endif %}" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+              Chưa ghi nhận phiếu thu học phí nào.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Alpine Modal Overlay for Editing tuition -->
+  <div x-show="editOpen" x-transition.opacity
+       style="position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100; display:none"
+       @click.self="editOpen = false">
+    <!-- Modal Window -->
+    <div x-show="editOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                width:420px; max-width:90vw; max-height:90vh; overflow-y:auto; margin-bottom:0"
+         class="card">
+      
+      <div class="card-header">
+        <h3 class="card-title">Cập nhật phiếu thu</h3>
+        <button type="button" @click="editOpen = false" class="btn btn-ghost btn-icon" style="border:none; background:none">✕</button>
+      </div>
+
+      <form :action="editAction" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div style="margin-bottom: var(--space-4)">
+          <div style="font-size: var(--text-xs); color: var(--text-3)">Học sinh</div>
+          <div style="font-weight: 600; font-size: var(--text-sm)" x-text="studentName"></div>
+        </div>
+
+        <div style="margin-bottom: var(--space-4)">
+          <div style="font-size: var(--text-xs); color: var(--text-3)">Khóa học</div>
+          <div style="font-weight: 600; font-size: var(--text-sm)" x-text="courseName"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit_amount">Số tiền đóng</label>
+          <input type="number" id="edit_amount" name="amount" x-model="amount" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit_status">Trạng thái</label>
+          <select id="edit_status" name="status" x-model="status">
+            <option value="paid">Đã thanh toán</option>
+            <option value="partial">Thanh toán một phần</option>
+            <option value="unpaid">Chưa đóng</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit_note">Ghi chú</label>
+          <textarea id="edit_note" name="note" x-model="note" rows="3"></textarea>
+        </div>
+
+        <div style="margin-top: var(--space-5); display: flex; gap: var(--space-3)">
+          <button type="submit" class="btn btn-primary" style="flex:1">Lưu thay đổi</button>
+          <button type="button" class="btn btn-secondary" @click="editOpen = false" style="flex:1">Hủy bỏ</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

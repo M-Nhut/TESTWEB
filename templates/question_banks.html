@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Ngân Hàng Câu Hỏi - EduCenter{% endblock %}
+{% block page_title %}Ngân hàng câu hỏi{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Quản lý kho dữ liệu câu hỏi & Đề kiểm tra</p>
+    <h1>Ngân hàng câu hỏi</h1>
+  </div>
+  
+  <div style="display:flex; gap:var(--space-3)">
+    <a href="{{ url_for('import_questions_page') }}" class="btn btn-secondary">
+      <i data-lucide="upload-cloud" style="width:14px;height:14px"></i>
+      Import câu hỏi (CSV/DOCX/PDF)
+    </a>
+    <a href="{{ url_for('create_question_bank') }}" class="btn btn-primary">
+      <i data-lucide="plus" style="width:14px;height:14px"></i>
+      Tạo ngân hàng mới
+    </a>
+  </div>
+</div>
+
+{% if banks %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-4)">
+    {% for bank in banks %}
+      {% set diff_stats = bank.stats_by_difficulty() %}
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-3)">
+            <span class="badge badge-open">{{ bank.subject }}</span>
+            {% if bank.grade %}
+              <span class="badge badge-upcoming">{{ bank.grade }}</span>
+            {% endif %}
+          </div>
+
+          <h3 style="font-size: var(--text-md); font-weight: 600; line-height: 1.4; margin-bottom: var(--space-2)">
+            <a href="{{ url_for('question_bank_detail', bank_id=bank.id) }}" style="color:var(--text-1)">
+              {{ bank.name }}
+            </a>
+          </h3>
+          
+          {% if bank.description %}
+            <p style="font-size: var(--text-xs); color: var(--text-2); margin-bottom: var(--space-3); line-clamp: 2">
+              {{ bank.description }}
+            </p>
+          {% endif %}
+
+          <div style="font-size: var(--text-xs); color: var(--text-2); display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--space-4)">
+            <div><i data-lucide="help-circle" style="width:12px; height:12px; vertical-align:middle"></i> <strong>Tổng số câu:</strong> {{ bank.question_count }} câu</div>
+            <div style="display:flex; gap:6px; margin-top:4px">
+              <span class="badge badge-present" style="font-size:10px">Nhận biết: {{ diff_stats.nhan_biet }}</span>
+              <span class="badge badge-upcoming" style="font-size:10px">Vận dụng: {{ diff_stats.van_dung }}</span>
+              <span class="badge badge-absent" style="font-size:10px">Vận dụng cao: {{ diff_stats.van_dung_cao }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border); padding-top: var(--space-3); display:flex; justify-content:space-between; align-items:center">
+          <span style="font-size:var(--text-xs); color:var(--text-3)">{{ bank.created_at.strftime('%d/%m/%Y') }}</span>
+          <div style="display:flex; gap:var(--space-2); align-items:center">
+            <a href="{{ url_for('question_bank_detail', bank_id=bank.id) }}" class="btn btn-secondary btn-sm" style="border-radius:9999px">
+              Chi tiết
+            </a>
+            <a href="{{ url_for('edit_question_bank', bank_id=bank.id) }}" class="btn btn-ghost btn-sm" style="color:var(--accent); border-radius:9999px">
+              Sửa
+            </a>
+            <form action="{{ url_for('delete_question_bank', bank_id=bank.id) }}" method="POST" style="display:inline" onsubmit="return confirm('Bạn có chắc chắn muốn XÓA HOÀN TOÀN ngân hàng câu hỏi \'{{ bank.name }}\'? Tất cả câu hỏi, đáp án và hình ảnh liên quan sẽ bị xóa sạch khỏi hệ thống!');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="btn btn-ghost btn-sm" style="color:#ef4444; border-radius:9999px" title="Xóa ngân hàng">
+                <i data-lucide="trash-2" style="width:14px;height:14px;vertical-align:middle"></i>
+                Xóa
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="text-align: center; color: var(--text-3); padding: var(--space-10)">
+    <i data-lucide="database" style="width:48px; height:48px; margin-bottom:var(--space-3); color:var(--text-3)"></i>
+    <h3>Chưa có ngân hàng câu hỏi nào</h3>
+    <p style="margin-bottom:var(--space-4)">Bạn có thể tạo ngân hàng câu hỏi mới hoặc import câu hỏi từ file CSV, DOCX, PDF.</p>
+    <div style="display:inline-flex; gap:var(--space-3)">
+      <a href="{{ url_for('import_questions_page') }}" class="btn btn-secondary">Import từ file</a>
+      <a href="{{ url_for('create_question_bank') }}" class="btn btn-primary">Tạo mới</a>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

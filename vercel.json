@@ -1,8 +1,17 @@
 {
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "TESTWEB/app.py"
+      "source": "/(.*)",
+      "destination": "/api/index"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "includeFiles": [
+        "templates/**",
+        "static/**",
+        "tutoring_center.db"
+      ]
+    }
+  }
 }

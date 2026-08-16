@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Quản lý Trung tâm - Trung tâm{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <!-- KaTeX Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <a href="{{ url_for('index') }}" class="sidebar-brand-link">
+        <div class="sidebar-logo">
+          <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="sidebar-logo-img">
+          <div class="sidebar-brand-info">
+            <h1 class="sidebar-brand-title">Edu Center</h1>
+            <span class="sidebar-brand-subtitle">Trung tâm dạy học</span>
+          </div>
+        </div>
+      </a>
+
+      <nav class="nav-section">
+        <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+          <i data-lucide="layout-dashboard"></i> Dashboard
+        </a>
+
+        <!-- Hiển thị theo role -->
+        <a href="{{ url_for('courses') }}" class="nav-item {% if 'course' in request.endpoint %}active{% endif %}">
+          <i data-lucide="book-open"></i> Khóa học
+        </a>
+
+        <a href="{{ url_for('my_schedule') }}"
+          class="nav-item {% if 'schedule' in request.endpoint and request.endpoint != 'schedules' %}active{% endif %}">
+          <i data-lucide="calendar"></i> Thời khóa biểu
+        </a>
+
+        {% if current_user.role in ('admin','manager','teacher') %}
+        <div class="nav-label">Giảng dạy</div>
+        <a href="{{ url_for('attendance') }}"
+          class="nav-item {% if 'attendance' in request.endpoint %}active{% endif %}">
+          <i data-lucide="user-check"></i> Điểm danh
+        </a>
+        {% if current_user.role == 'teacher' %}
+        <a href="{{ url_for('my_students') }}"
+          class="nav-item {% if request.endpoint == 'my_students' %}active{% endif %}">
+          <i data-lucide="users"></i> Học sinh của tôi
+        </a>
+        {% endif %}
+        <a href="{{ url_for('payroll') }}" class="nav-item {% if 'payroll' in request.endpoint %}active{% endif %}">
+          <i data-lucide="wallet"></i> Bảng lương
+        </a>
+        <a href="{{ url_for('my_teaching_records') }}"
+          class="nav-item {% if 'teaching' in request.endpoint %}active{% endif %}">
+          <i data-lucide="clipboard-list"></i> Nhật ký dạy
+        </a>
+        {% endif %}
+
+        {% if current_user.role in ('admin','manager','student','parent') %}
+        <div class="nav-label">Tài chính</div>
+        <a href="{{ url_for('tuition') }}" class="nav-item {% if 'tuition' in request.endpoint %}active{% endif %}">
+          <i data-lucide="banknote"></i> Học phí
+        </a>
+        {% endif %}
+
+        <div class="nav-label">Học tập</div>
+        <a href="{{ url_for('exam_list') }}" class="nav-item {% if 'exam' in request.endpoint and 'bank' not in request.endpoint %}active{% endif %}">
+          <i data-lucide="file-text"></i> Bài kiểm tra
+        </a>
+
+        {% if current_user.role in ('admin','manager','teacher') %}
+        <a href="{{ url_for('question_bank_list') }}" class="nav-item {% if 'question_bank' in request.endpoint or 'import' in request.endpoint %}active{% endif %}">
+          <i data-lucide="database"></i> Ngân hàng câu hỏi
+        </a>
+        <a href="{{ url_for('teacher_analytics') }}" class="nav-item {% if 'teacher_analytics' in request.endpoint %}active{% endif %}">
+          <i data-lucide="bar-chart-3"></i> Báo cáo phân tích
+        </a>
+        {% endif %}
+
+        {% if current_user.role == 'student' %}
+        <a href="{{ url_for('practice_home') }}" class="nav-item {% if 'practice' in request.endpoint %}active{% endif %}">
+          <i data-lucide="brain"></i> Tự luyện thích ứng
+        </a>
+        {% endif %}
+
+        {% if current_user.role == 'parent' %}
+        <a href="{{ url_for('parent_dashboard') }}" class="nav-item {% if 'parent_dashboard' in request.endpoint %}active{% endif %}">
+          <i data-lucide="line-chart"></i> Kết quả học tập
+        </a>
+        {% endif %}
+
+        {% if current_user.role in ('admin','manager') %}
+        <div class="nav-label">Quản trị</div>
+        <a href="{{ url_for('manage_users', role_name='students') }}"
+          class="nav-item {% if request.endpoint == 'manage_users' and request.view_args.get('role_name','') == 'students' %}active{% endif %}">
+          <i data-lucide="graduation-cap"></i> Học sinh
+        </a>
+        <a href="{{ url_for('manage_users', role_name='teachers') }}"
+          class="nav-item {% if request.endpoint == 'manage_users' and request.view_args.get('role_name','') == 'teachers' %}active{% endif %}">
+          <i data-lucide="users-2"></i> Giáo viên
+        </a>
+        <a href="{{ url_for('manage_users', role_name='parents') }}"
+          class="nav-item {% if request.endpoint == 'manage_users' and request.view_args.get('role_name','') == 'parents' %}active{% endif %}">
+          <i data-lucide="heart-handshake"></i> Phụ huynh
+        </a>
+        <a href="{{ url_for('manage_users', role_name='staff') }}"
+          class="nav-item {% if request.endpoint == 'manage_users' and request.view_args.get('role_name','') == 'staff' %}active{% endif %}">
+          <i data-lucide="shield-check"></i> Staff
+        </a>
+        <a href="{{ url_for('schedules') }}" class="nav-item {% if request.endpoint == 'schedules' %}active{% endif %}">
+          <i data-lucide="table-2"></i> Lịch học
+        </a>
+        {% endif %}
+      </nav>
+
+      <!-- User info bottom -->
+      <div class="sidebar-footer">
+        <img class="avatar-sm" src="{{ url_for('serve_avatar', filename=current_user.avatar or 'default.jpg') }}"
+          alt="">
+        <div>
+          <div class="user-name" title="{{ current_user.fullname }}">{{ current_user.fullname }}</div>
+          <div class="user-role">{{ ROLE_LABELS[current_user.role] }}</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main-area">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div style="display:flex;align-items:center;gap:var(--space-3)">
+          <h2 style="margin:0;font-size:var(--text-md);font-weight:600;font-family:inherit">
+            {% block page_title %}{% endblock %}
+          </h2>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-3)">
+          <a href="{{ url_for('profile') }}" class="btn btn-ghost btn-sm">
+            <i data-lucide="user" style="width:14px;height:14px;"></i>
+            {{ current_user.fullname }}
+          </a>
+          <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm" title="Đăng xuất">
+            <i data-lucide="log-out" style="width:14px;height:14px;"></i>
+          </a>
+        </div>
+      </header>
+
+      <!-- FLASH MESSAGES -->
+      <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}" x-data x-init="setTimeout(()=>$el.remove(), 5000)">
+          <i data-lucide="{% if category == 'success' %}check-circle{% elif category == 'danger' %}alert-circle{% elif category == 'warning' %}alert-triangle{% else %}info{% endif %}"
+            style="width:16px;height:16px;"></i>
+          <span>{{ message }}</span>
+          <button class="flash-close" @click="$el.parentElement.remove()">✕</button>
+        </div>
+        {% endfor %}
+        {% endwith %}
+      </div>
+
+      <!-- PAGE CONTENT -->
+      <main class="page-content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.0/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@2.0.0/dist/htmx.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- KaTeX Math JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="window.renderKaTeX()"></script>
+  <script>
+    window.renderKaTeX = function(el) {
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(el || document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '\\[', right: '\\]', display: true}
+          ],
+          throwOnError: false
+        });
+      }
+    };
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      setTimeout(() => window.renderKaTeX(), 200);
+    });
+    document.body.addEventListener('htmx:afterOnLoad', () => {
+      lucide.createIcons();
+      setTimeout(() => window.renderKaTeX(), 200);
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+
+</html>

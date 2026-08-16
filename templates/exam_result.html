@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Kết quả kiểm tra - EduCenter{% endblock %}
+{% block page_title %}Kết quả bài kiểm tra{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Đánh giá & Chi tiết bài làm</p>
+    <h1>{{ exam.title }}</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('exam_list') }}" class="btn btn-secondary">Quay lại danh sách</a>
+  </div>
+</div>
+
+{% if single_view %}
+  <!-- Student Detailed Result (single_view = True) -->
+  <div class="form-grid-3" style="grid-template-columns: 1fr 2fr; align-items: start; gap: var(--space-6)">
+    
+    <!-- Left column: Score Ring Widget & Stats -->
+    <div class="card" style="display:flex; flex-direction:column; align-items:center; text-align:center">
+      <div class="card-header" style="width:100%; border-bottom:1px solid var(--border)">
+        <h3 class="card-title" style="margin:0">Điểm số đạt được</h3>
+      </div>
+      
+      {% set pct = (submission.total_score / (submission.max_score or 1)) * 100 %}
+      {% set stroke_offset = 314 - (314 * (pct / 100)) %}
+      
+      <div class="score-container">
+        <div class="score-ring">
+          <svg>
+            <circle class="bg" cx="60" cy="60" r="50"></circle>
+            <circle class="progress" cx="60" cy="60" r="50" style="stroke-dashoffset: {{ stroke_offset }};"></circle>
+          </svg>
+          <div class="score-text">
+            {{ submission.total_score }}/{{ submission.max_score }}
+          </div>
+        </div>
+        <p style="font-size: var(--text-sm); font-weight:600; color:var(--text-2); margin-top:var(--space-2)">
+          Tỷ lệ đúng: {{ pct | round(1) }}%
+        </p>
+      </div>
+
+      <div style="width:100%; font-size:var(--text-xs); color:var(--text-2); display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--border); padding-top:var(--space-4); text-align:left">
+        <div><strong>Học sinh:</strong> {{ submission.student.fullname }} ({{ submission.student.user_code }})</div>
+        <div><strong>Khóa học:</strong> {{ exam.course.course_name }}</div>
+        <div><strong>Bắt đầu lúc:</strong> {{ submission.started_at.strftime('%H:%M:%S %d/%m/%Y') }}</div>
+        {% if submission.submitted_at %}
+          <div><strong>Nộp bài lúc:</strong> {{ submission.submitted_at.strftime('%H:%M:%S %d/%m/%Y') }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right column: Question review breakdown -->
+    <div style="display:flex; flex-direction:column; gap:var(--space-4)">
+      
+      <h2 style="font-family:'Fraunces', serif; font-size:var(--text-lg); margin-bottom:var(--space-1)">Chi tiết bài làm</h2>
+      
+      {% set submission_answers_map = {} %}
+      {% for sa in submission.answers %}
+        {% set _ = submission_answers_map.update({sa.question_id: sa}) %}
+      {% endfor %}
+
+      {% for q in exam.questions %}
+        {% set sa = submission_answers_map.get(q.id) %}
+        {% set selected_ids = sa.get_selected_ids() if sa else [] %}
+        {% set sa_payload = sa.get_answer_payload() if sa else {} %}
+        
+        <div class="card" style="border-left: 3px solid {% if sa and sa.is_correct %}var(--success){% elif sa and sa.points_earned > 0 %}var(--warning){% else %}var(--danger){% endif %}; margin-bottom:0">
+          
+          <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-3)">
+            <span style="font-size:var(--text-xs); font-weight:600; color:var(--text-3); text-transform:uppercase">
+              Câu {{ loop.index }} · 
+              {% if q.question_type == 'single' %}
+                Một lựa chọn
+              {% elif q.question_type == 'multi' %}
+                Nhiều lựa chọn
+              {% elif q.question_type in ('truefalse', 'true_false') %}
+                Đúng / Sai
+              {% else %}
+                Tự luận / Trả lời ngắn
+              {% endif %}
+            </span>
+            <span style="font-size:var(--text-xs); font-weight:600; color:{% if sa and sa.is_correct %}var(--success){% elif sa and sa.points_earned > 0 %}var(--warning){% else %}var(--danger){% endif %}">
+              {% if sa %}
+                Đạt: {{ sa.points_earned }} / {{ q.points }}đ
+              {% else %}
+                Không trả lời (0 / {{ q.points }}đ)
+              {% endif %}
+            </span>
+          </div>
+
+          <p style="font-weight:500; font-size:var(--text-sm); line-height:1.5; color:var(--text-1); margin-bottom:var(--space-4)">
+            {{ q.question_text }}
+          </p>
+
+          {% if q.question_type in ('truefalse', 'true_false') %}
+            <!-- True/False Review Table -->
+            <div style="display:flex; flex-direction:column; gap:var(--space-2)">
+              {% for answer in q.answers %}
+                {% set st_val = sa_payload.get(answer.id | string) %}
+                {% set expected_val = answer.is_correct %}
+                {% set is_st_correct = (st_val == expected_val) %}
+
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-3);
+                            padding:var(--space-3) var(--space-4);
+                            border:1px solid {% if is_st_correct %}var(--success){% else %}var(--danger){% endif %};
+                            background: {% if is_st_correct %}var(--success-light){% else %}var(--danger-light){% endif %};
+                            border-radius:var(--radius-sm);">
+                  
+                  <div style="font-size:var(--text-sm); color:var(--text-1); font-weight:500; flex:1">
+                    {{ answer.answer_text }}
+                  </div>
+
+                  <div style="display:flex; align-items:center; gap:var(--space-2)">
+                    <span style="font-size:var(--text-xs); color:var(--text-2)">
+                      Lựa chọn: 
+                      {% if st_val is true %}
+                        <strong style="color:var(--accent)">Đúng</strong>
+                      {% elif st_val is false %}
+                        <strong style="color:var(--accent)">Sai</strong>
+                      {% else %}
+                        <em style="color:var(--text-3)">Chưa chọn</em>
+                      {% endif %}
+                    </span>
+                    <span style="font-size:var(--text-xs); color:var(--text-2); margin-left:var(--space-2)">
+                      Đáp án: <strong>{{ 'Đúng' if expected_val else 'Sai' }}</strong>
+                    </span>
+
+                    {% if is_st_correct %}
+                      <span class="badge badge-present" style="font-size:10px; padding:2px 8px">Đúng</span>
+                    {% else %}
+                      <span class="badge badge-absent" style="font-size:10px; padding:2px 8px">Sai</span>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+          {% elif q.question_type in ('short_answer', 'essay', 'tu_luan') %}
+            <!-- Essay Review -->
+            <div style="display:flex; flex-direction:column; gap:var(--space-3); padding:var(--space-3); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface)">
+              <div>
+                <strong style="font-size:var(--text-xs); color:var(--text-2)">Bài làm tự luận:</strong>
+                <p style="font-size:var(--text-sm); color:var(--text-1); margin-top:4px; white-space:pre-wrap">
+                  {{ sa_payload.get('text') if sa_payload.get('text') else 'Không có văn bản nhập' }}
+                </p>
+              </div>
+
+              {% if sa_payload.get('file_url') %}
+                <div style="margin-top:var(--space-2)">
+                  <strong style="font-size:var(--text-xs); color:var(--text-2); display:block; margin-bottom:4px">File / Ảnh bài làm đính kèm:</strong>
+                  <a href="{{ sa_payload.get('file_url') }}" target="_blank" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px">
+                    <i data-lucide="paperclip" style="width:14px; height:14px"></i> Xem / Tải về file bài làm
+                  </a>
+                  {% if sa_payload.get('file_url').endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) %}
+                    <div style="margin-top:var(--space-2)">
+                      <img src="{{ sa_payload.get('file_url') }}" alt="Ảnh bài làm đính kèm" style="max-width:100%; max-height:300px; border-radius:var(--radius-md); border:1px solid var(--border)">
+                    </div>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+
+          {% else %}
+            <!-- Single / Multi Choice Review -->
+            <div style="display:flex; flex-direction:column; gap:var(--space-2)">
+              {% for answer in q.answers %}
+                {% set is_selected = answer.id in selected_ids %}
+                
+                <div style="display:flex; align-items:center; gap:var(--space-3);
+                            padding:var(--space-2) var(--space-4);
+                            border:1px solid {% if answer.is_correct %}var(--success){% elif is_selected %}var(--danger){% else %}var(--border){% endif %};
+                            background: {% if answer.is_correct %}var(--success-light){% elif is_selected %}var(--danger-light){% else %}var(--surface){% endif %};
+                            border-radius:var(--radius-sm);">
+                  
+                  <!-- Icon choice check indicators -->
+                  {% if q.question_type == 'multi' %}
+                    <i data-lucide="{% if is_selected %}check-square{% else %}square{% endif %}" 
+                       style="width:14px; height:14px; color:{% if answer.is_correct %}var(--success){% elif is_selected %}var(--danger){% else %}var(--text-3){% endif %}"></i>
+                  {% else %}
+                    <i data-lucide="{% if is_selected %}circle-dot{% else %}circle{% endif %}" 
+                       style="width:14px; height:14px; color:{% if answer.is_correct %}var(--success){% elif is_selected %}var(--danger){% else %}var(--text-3){% endif %}"></i>
+                  {% endif %}
+                  
+                  <span style="font-size:var(--text-sm); 
+                               color:{% if answer.is_correct %}var(--success){% elif is_selected %}var(--danger){% else %}var(--text-2){% endif %};
+                               font-weight:{% if answer.is_correct or is_selected %}500{% else %}400{% endif %}">
+                    {{ answer.answer_text }}
+                  </span>
+
+                  <!-- Indicators tags -->
+                  {% if answer.is_correct %}
+                    <span class="badge badge-present" style="margin-left:auto; font-size:9px; padding:1px 6px">Đáp án đúng</span>
+                  {% elif is_selected %}
+                    <span class="badge badge-absent" style="margin-left:auto; font-size:9px; padding:1px 6px">Bạn chọn sai</span>
+                  {% endif %}
+
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+{% else %}
+  <!-- Teacher / Manager view of all submissions (single_view = False) -->
+  <div class="card" style="padding:0; overflow:hidden">
+    <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+      <h3 class="card-title">Danh sách bài nộp của học sinh ({{ submissions|length }} lượt nộp)</h3>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Học sinh</th>
+          <th>Mã học sinh</th>
+          <th>Ngày nộp bài</th>
+          <th class="text-right">Điểm số đạt được</th>
+          <th class="text-right">Tỷ lệ đúng</th>
+          <th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if submissions %}
+          {% for sub in submissions %}
+          <tr>
+            <td>
+              <div style="display:flex; align-items:center; gap:var(--space-2)">
+                <img src="{{ url_for('serve_avatar', filename=sub.student.avatar or 'default.jpg') }}" 
+                     style="width:28px; height:28px; border-radius:50%; object-fit:cover">
+                <span style="font-weight: 500">{{ sub.student.fullname }}</span>
+              </div>
+            </td>
+            <td><span class="badge badge-upcoming">{{ sub.student.user_code }}</span></td>
+            <td>{{ sub.submitted_at.strftime('%H:%M:%S %d/%m/%Y') if sub.submitted_at else 'Chưa nộp' }}</td>
+            <td class="text-right money" style="font-weight: 600; color: var(--accent)">
+              {{ sub.total_score }} / {{ sub.max_score }}
+            </td>
+            {% set sub_pct = (sub.total_score / (sub.max_score or 1)) * 100 %}
+            <td class="text-right money">{{ sub_pct | round(1) }}%</td>
+            <td>
+              {% if sub.is_graded %}
+                <span class="badge badge-present">Đã chấm điểm</span>
+              {% else %}
+                <span class="badge badge-partial">Đang chờ chấm</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+              Chưa có học sinh nào nộp bài kiểm tra này.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

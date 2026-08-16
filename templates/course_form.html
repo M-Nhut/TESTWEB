@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Cập nhật' if course else 'Tạo' }} Khóa học - EduCenter{% endblock %}
+{% block page_title %}{{ 'Sửa khóa học' if course else 'Tạo khóa học mới' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Thông tin chương trình học</p>
+    <h1>{{ 'Chỉnh sửa khóa học' if course else 'Thêm khóa học mới' }}</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('courses') }}" class="btn btn-secondary">Quay lại</a>
+  </div>
+</div>
+
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="form-grid-2">
+    <!-- Cột trái: Form thông tin -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Thông tin cơ bản</h3>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="course_name">Tên khóa học *</label>
+        <input type="text" id="course_name" name="course_name" value="{{ course.course_name if course else '' }}" required placeholder="Ví dụ: Toán nâng cao lớp 10">
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="subject">Môn học *</label>
+          <input type="text" id="subject" name="subject" value="{{ course.subject if course else '' }}" required placeholder="Ví dụ: Toán">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="classroom">Phòng học</label>
+          <input type="text" id="classroom" name="classroom" value="{{ course.classroom if course else '' }}" placeholder="Ví dụ: Phòng A1">
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="tuition_amount">Mức học phí *</label>
+          <input type="number" id="tuition_amount" name="tuition_amount" value="{{ course.tuition_amount if course else '' }}" required placeholder="Ví dụ: 1500000">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tuition_type">Hình thức thu học phí</label>
+          <select id="tuition_type" name="tuition_type">
+            <option value="monthly" {% if course and course.tuition_type == 'monthly' %}selected{% endif %}>Theo tháng</option>
+            <option value="full_course" {% if course and course.tuition_type == 'full_course' %}selected{% endif %}>Trọn khóa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="start_date">Ngày khai giảng</label>
+          <input type="date" id="start_date" name="start_date" value="{{ course.start_date.isoformat() if course and course.start_date else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="end_date">Ngày bế giảng</label>
+          <input type="date" id="end_date" name="end_date" value="{{ course.end_date.isoformat() if course and course.end_date else '' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="description">Mô tả khóa học</label>
+        <textarea id="description" name="description" rows="4" placeholder="Nhập mục tiêu khóa học, đề cương sơ lược...">{{ course.description if course else '' }}</textarea>
+      </div>
+
+      <div class="form-group" style="margin-top: var(--space-4)">
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_active" value="1" {% if not course or course.is_active %}checked{% endif %}>
+          <span>Kích hoạt khóa học (cho phép hiển thị và điểm danh)</span>
+        </label>
+      </div>
+
+      <div style="margin-top: var(--space-6); display:flex; gap: var(--space-3)">
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="save" style="width:14px;height:14px"></i>
+          {{ 'Lưu thay đổi' if course else 'Tạo khóa học' }}
+        </button>
+        <a href="{{ url_for('courses') }}" class="btn btn-secondary">Hủy</a>
+      </div>
+    </div>
+
+    <!-- Cột phải: Giáo viên và Preview -->
+    <div class="card" style="display:flex; flex-direction:column; gap: var(--space-5)">
+      <div class="card-header">
+        <h3 class="card-title">Phân công Giáo viên</h3>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="teacher_id">Chọn giáo viên giảng dạy</label>
+        <select id="teacher_id" name="teacher_id" onchange="updateTeacherPreview(this)">
+          <option value="">-- Chưa phân công --</option>
+          {% for teacher in teachers %}
+            <option value="{{ teacher.id }}" {% if course and course.teacher_id == teacher.id %}selected{% endif %}>
+              {{ teacher.fullname }} ({{ teacher.user_code }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Preview Panel -->
+      <div id="teacher-preview" class="card" style="display:none; flex-direction:row; gap:var(--space-4); background:var(--surface-2); border-color:var(--border-strong); margin-bottom:0; align-items:center">
+        <img id="t-avatar" src="" style="width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid var(--surface)">
+        <div style="flex:1">
+          <div style="display:flex; align-items:center; gap:var(--space-2)">
+            <h4 id="t-name" style="font-weight:600; margin:0"></h4>
+            <span id="t-code" class="badge badge-upcoming"></span>
+          </div>
+          <div style="font-size: var(--text-sm); color: var(--text-2); margin-top:2px">
+            <span style="font-weight:500">Chức vụ:</span> <span id="t-position"></span>
+          </div>
+          <div style="font-size: var(--text-xs); color: var(--text-2)">
+            <span style="font-weight:500">SĐT:</span> <span id="t-phone"></span>
+          </div>
+          <div style="font-size: var(--text-xs); color: var(--text-2); margin-top:2px">
+            <span style="font-weight:500">Lương cơ bản:</span> <span id="t-salary" style="font-weight: 600; color:var(--accent)"></span>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const teachersData = {
+    {% for teacher in teachers %}
+      "{{ teacher.id }}": {
+        fullname: "{{ teacher.fullname }}",
+        phone: "{{ teacher.phone or 'Chưa cập nhật SĐT' }}",
+        position: "{{ teacher.position or 'Giáo viên tự do' }}",
+        avatar: "{{ url_for('serve_avatar', filename=teacher.avatar or 'default.jpg') }}",
+        user_code: "{{ teacher.user_code }}",
+        salary: "{{ money(teacher.salary_rate_per_hour) }}đ/h"
+      }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  function updateTeacherPreview(selectElement) {
+    const id = selectElement.value;
+    const previewContainer = document.getElementById('teacher-preview');
+    if (!id || !teachersData[id]) {
+      previewContainer.style.display = 'none';
+      return;
+    }
+    const data = teachersData[id];
+    document.getElementById('t-avatar').src = data.avatar;
+    document.getElementById('t-name').textContent = data.fullname;
+    document.getElementById('t-code').textContent = data.user_code;
+    document.getElementById('t-position').textContent = data.position;
+    document.getElementById('t-phone').textContent = data.phone;
+    document.getElementById('t-salary').textContent = data.salary;
+    previewContainer.style.display = 'flex';
+  }
+
+  // Run on page load if a teacher is already selected
+  document.addEventListener('DOMContentLoaded', () => {
+    updateTeacherPreview(document.getElementById('teacher_id'));
+  });
+</script>
+{% endblock %}

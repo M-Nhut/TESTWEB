@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Biểu Đồ Tiến Bộ - EduCenter{% endblock %}
+{% block page_title %}Phân tích tiến bộ học tập{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Theo dõi sự thay đổi năng lực qua thời gian</p>
+    <h1>Biểu đồ tiến bộ học tập</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('practice_home') }}" class="btn btn-primary">
+      <i data-lucide="play" style="width:14px;height:14px"></i> Tự luyện ngay
+    </a>
+  </div>
+</div>
+
+<!-- Subject Selector -->
+<div class="card" style="padding:var(--space-3) var(--space-4); margin-bottom:var(--space-6)">
+  <form method="GET" style="display:flex; gap:var(--space-3); align-items:center">
+    <label style="font-weight:600">Môn học:</label>
+    <select name="subject" onchange="this.form.submit()" style="width:200px">
+      {% for sub in subjects %}
+        <option value="{{ sub }}" {% if sub == selected_subject %}selected{% endif %}>{{ sub }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<!-- Summary Cards Grid -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:var(--space-4); margin-bottom:var(--space-6)">
+  <div class="card" style="margin-bottom:0">
+    <span style="font-size:var(--text-xs); color:var(--text-3)">ĐIỂM TRUNG BÌNH</span>
+    <h2 style="margin:4px 0 0 0; color:var(--accent)">{{ profile.avg_score }}/10</h2>
+  </div>
+  <div class="card" style="margin-bottom:0">
+    <span style="font-size:var(--text-xs); color:var(--text-3)">ĐIỂM CAO NHẤT</span>
+    <h2 style="margin:4px 0 0 0; color:var(--success)">{{ profile.best_score if profile.best_score is defined else profile.avg_score }}/10</h2>
+  </div>
+  <div class="card" style="margin-bottom:0">
+    <span style="font-size:var(--text-xs); color:var(--text-3)">TỔNG SỐ BÀI LUYỆN</span>
+    <h2 style="margin:4px 0 0 0">{{ profile.total_attempts }} bài</h2>
+  </div>
+  <div class="card" style="margin-bottom:0">
+    <span style="font-size:var(--text-xs); color:var(--text-3)">XU HƯỚNG NĂNG LỰC</span>
+    <h3 style="margin:4px 0 0 0">
+      {% if profile.score_trend == 'improving' %}📈 Đang tiến bộ{% elif profile.score_trend == 'declining' %}📉 Cần cố gắng{% else %}➡️ Ổn định{% endif %}
+    </h3>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap:var(--space-6); align-items:start; margin-bottom:var(--space-6)">
+  
+  <!-- Line Chart: Score history -->
+  <div class="card">
+    <h3 style="margin-bottom:var(--space-4)">Lịch sử điểm số qua các lần luyện</h3>
+    <div style="position:relative; height:300px">
+      <canvas id="scoreChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Radar Chart: Accuracy by Difficulty -->
+  <div class="card">
+    <h3 style="margin-bottom:var(--space-4)">Tỷ lệ đúng theo mức độ</h3>
+    <div style="position:relative; height:300px">
+      <canvas id="accuracyChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- Recent Submissions Table -->
+<div class="card" style="padding:0; overflow:hidden">
+  <div class="card-header" style="padding:var(--space-4) var(--space-6)">
+    <h3 class="card-title">Chi tiết lịch sử bài làm</h3>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Thời gian nộp</th>
+        <th>Tên bài làm</th>
+        <th>Loại</th>
+        <th class="text-right">Điểm số</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if history %}
+        {% for h in history %}
+          <tr>
+            <td>{{ h.date }}</td>
+            <td style="font-weight:500">{{ h.title }}</td>
+            <td>
+              <span class="badge {% if h.type == 'practice' %}badge-upcoming{% else %}badge-open{% endif %}">
+                {{ 'Tự luyện' if h.type == 'practice' else 'Kiểm tra' }}
+              </span>
+            </td>
+            <td class="text-right" style="font-weight:600; color:var(--accent)">{{ h.score }}/10</td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-3); padding:var(--space-8)">
+            Chưa có lịch sử làm bài nào cho môn học này.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const historyData = {{ history | tojson }};
+  
+  // 1. Line Chart Data
+  const labels = historyData.map((h, i) => 'Bài ' + (i+1));
+  const scores = historyData.map(h => h.score);
+
+  const ctxLine = document.getElementById('scoreChart').getContext('2d');
+  new Chart(ctxLine, {
+    type: 'line',
+    data: {
+      labels: labels.length ? labels : ['Chưa có dữ liệu'],
+      datasets: [{
+        label: 'Điểm số (thang 10)',
+        data: scores.length ? scores : [0],
+        borderColor: '#1a40b0',
+        backgroundColor: 'rgba(26, 64, 176, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#1a40b0'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 10, ticks: { stepSize: 2 } }
+      }
+    }
+  });
+
+  // 2. Bar Chart: Accuracy
+  const ctxBar = document.getElementById('accuracyChart').getContext('2d');
+  new Chart(ctxBar, {
+    type: 'bar',
+    data: {
+      labels: ['Nhận biết', 'Vận dụng', 'Vận dụng cao'],
+      datasets: [{
+        label: 'Tỷ lệ đúng (%)',
+        data: [
+          {{ profile.nhan_biet_accuracy }},
+          {{ profile.van_dung_accuracy }},
+          {{ profile.van_dung_cao_accuracy }}
+        ],
+        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100 }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

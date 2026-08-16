@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng ký thành viên - EduCenter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body style="background: var(--surface)">
+<div class="auth-layout">
+  
+  <!-- Left Panel: Decorative -->
+  <div class="auth-panel">
+    <div>
+      <span style="font-size: var(--text-sm); font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-3)">
+        EduCenter
+      </span>
+      <h1>Kiến tạo nền tảng tri thức vững chắc.</h1>
+      <p style="font-size: var(--text-md); font-weight: 400; line-height: 1.6; color: var(--text-2); max-width: 440px;">
+        Đăng ký một tài khoản mới để kết nối với lớp học của chúng tôi. Chúng tôi cung cấp các chương trình giảng dạy tối ưu, thời khóa biểu tiện lợi cùng đội ngũ giáo viên chất lượng.
+      </p>
+    </div>
+  </div>
+
+  <!-- Right Panel: Registration Form -->
+  <div class="auth-form-area" style="padding: var(--space-8) var(--space-12); overflow-y: auto;">
+    <div class="auth-form" style="max-width: 440px;">
+      <div style="margin-bottom: var(--space-6)">
+        <div style="display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4)">
+          <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" style="width:48px; height:48px; border-radius:50%; object-fit:cover; flex-shrink:0; border: 1px solid var(--border)">
+          <div>
+            <h1 style="font-size:18px; font-weight:800; color:var(--accent); line-height:1.2; margin:0">EduCenter</h1>
+            <span style="font-size:11px; color:var(--text-3); font-weight:500; margin-top:0">Trung tâm Dạy kèm Chất lượng</span>
+          </div>
+        </div>
+        <h2 style="font-family: 'Inter', sans-serif; font-size: var(--text-2xl); font-weight: 700; color: var(--text-1)">
+          Đăng ký tài khoản
+        </h2>
+        <p style="font-size: var(--text-sm); color: var(--text-2); margin-top: var(--space-1)">
+          Điền các thông tin sau để bắt đầu
+        </p>
+      </div>
+
+      <!-- Flash messages inside auth layout -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div style="margin-bottom: var(--space-4); border-radius: var(--radius-sm); overflow: hidden">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}" style="padding: var(--space-2) var(--space-4)">
+                <span style="font-size: var(--text-xs)">{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            {{ form.user_code.label(class="form-label") }}
+            {{ form.user_code(placeholder="Mã số của bạn (VD: HS102)") }}
+            {% if form.user_code.errors %}
+              {% for error in form.user_code.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+          <div class="form-group">
+            {{ form.fullname.label(class="form-label") }}
+            {{ form.fullname(placeholder="Họ và tên") }}
+            {% if form.fullname.errors %}
+              {% for error in form.fullname.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            {{ form.username.label(class="form-label") }}
+            {{ form.username(placeholder="Tên đăng nhập") }}
+            {% if form.username.errors %}
+              {% for error in form.username.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+          <div class="form-group">
+            {{ form.role.label(class="form-label") }}
+            {{ form.role() }}
+            {% if form.role.errors %}
+              {% for error in form.role.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            {{ form.phone.label(class="form-label") }}
+            {{ form.phone(placeholder="09xx xxx xxx") }}
+            {% if form.phone.errors %}
+              {% for error in form.phone.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+          <div class="form-group">
+            {{ form.parent_phone.label(class="form-label") }}
+            {{ form.parent_phone(placeholder="09xx xxx xxx (nếu là HS)") }}
+            {% if form.parent_phone.errors %}
+              {% for error in form.parent_phone.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-group">
+          {{ form.position.label(class="form-label") }}
+          {{ form.position(placeholder="Lớp học / Chức vụ dạy") }}
+          {% if form.position.errors %}
+            {% for error in form.position.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            {{ form.password.label(class="form-label") }}
+            {{ form.password(placeholder="Tối thiểu 6 ký tự") }}
+            {% if form.password.errors %}
+              {% for error in form.password.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+          <div class="form-group">
+            {{ form.confirm_password.label(class="form-label") }}
+            {{ form.confirm_password(placeholder="Xác nhận mật khẩu") }}
+            {% if form.confirm_password.errors %}
+              {% for error in form.confirm_password.errors %}
+                <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="margin-top: var(--space-4); margin-bottom: var(--space-6)">
+          {{ form.submit(class="btn btn-primary", style="width: 100%; padding: 10px") }}
+        </div>
+      </form>
+
+      <div style="text-align: center; font-size: var(--text-sm)">
+        <span style="color: var(--text-2)">Đã có tài khoản?</span>
+        <a href="{{ url_for('login') }}" style="font-weight: 600">Đăng nhập</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

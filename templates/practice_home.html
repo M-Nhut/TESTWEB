@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Tự Luyện Thích Ứng - EduCenter{% endblock %}
+{% block page_title %}Tự luyện thích ứng năng lực{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Hệ thống tự luyện cá nhân hóa theo năng lực học sinh</p>
+    <h1>Tự luyện học tập</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('practice_progress') }}" class="btn btn-secondary">
+      <i data-lucide="line-chart" style="width:14px;height:14px"></i>
+      Xem biểu đồ tiến bộ
+    </a>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-6)">
+  {% for sub in subjects %}
+    {% set prof = profiles.get(sub, {}) %}
+    {% set banks = banks_by_subject.get(sub, []) %}
+    
+    <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; margin-bottom:0">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3)">
+          <span class="badge badge-open" style="font-size:var(--text-sm); padding:4px 10px">{{ sub }}</span>
+          
+          <span class="badge" :class="{'badge-present': '{{ prof.adaptive_difficulty }}' === 'challenge', 'badge-upcoming': '{{ prof.adaptive_difficulty }}' === 'standard', 'badge-absent': '{{ prof.adaptive_difficulty }}' === 'reinforce'}">
+            {% if prof.adaptive_difficulty == 'reinforce' %}
+              🛡 Củng cố kiến thức
+            {% elif prof.adaptive_difficulty == 'challenge' %}
+              ⚡ Thách thức nâng cao
+            {% else %}
+              🎯 Cấp độ chuẩn
+            {% endif %}
+          </span>
+        </div>
+
+        <!-- Performance Stats Overview -->
+        <div style="background:var(--surface-2); padding:var(--space-4); border-radius:var(--radius-md); margin-bottom:var(--space-4)">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:var(--space-2)">
+            <span style="font-size:var(--text-xs); color:var(--text-2)">ĐIỂM TRUNG BÌNH</span>
+            <span style="font-size:var(--text-xl); font-weight:700; color:var(--accent)">{{ prof.avg_score }}/10</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:var(--text-xs); color:var(--text-2)">
+            <span>Số bài đã luyện: <strong>{{ prof.total_attempts }}</strong></span>
+            <span>Xu hướng: 
+              <strong>
+                {% if prof.score_trend == 'improving' %}📈 Đang tăng{% elif prof.score_trend == 'declining' %}📉 Đang giảm{% else %}➡️ Ổn định{% endif %}
+              </strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Accuracy breakdown -->
+        <div style="font-size:var(--text-xs); color:var(--text-2); display:flex; flex-direction:column; gap:6px; margin-bottom:var(--space-4)">
+          <div style="display:flex; justify-content:space-between">
+            <span>Tỷ lệ đúng Nhận biết:</span>
+            <strong>{{ prof.nhan_biet_accuracy }}%</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between">
+            <span>Tỷ lệ đúng Vận dụng:</span>
+            <strong>{{ prof.van_dung_accuracy }}%</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between">
+            <span>Tỷ lệ đúng Vận dụng cao:</span>
+            <strong>{{ prof.van_dung_cao_accuracy }}%</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Practice Form -->
+      <form action="{{ url_for('practice_generate') }}" method="POST" style="border-top:1px solid var(--border); padding-top:var(--space-4)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="subject" value="{{ sub }}">
+
+        <div class="form-group" style="margin-bottom:var(--space-3)">
+          <label class="form-label" style="font-size:var(--text-xs)">Chọn Ngân hàng câu hỏi</label>
+          <select name="bank_id" style="font-size:var(--text-xs); padding:4px 8px" required>
+            {% if banks %}
+              {% for b in banks %}
+                <option value="{{ b.id }}">{{ b.name }} ({{ b.question_count }} câu)</option>
+              {% endfor %}
+            {% else %}
+              <option value="">Chưa có ngân hàng câu hỏi</option>
+            {% endif %}
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:var(--space-4)">
+          <label class="form-label" style="font-size:var(--text-xs)">Số câu hỏi mong muốn</label>
+          <select name="total_questions" style="font-size:var(--text-xs); padding:4px 8px">
+            <option value="5">5 câu (Nhanh - 8 phút)</option>
+            <option value="10" selected>10 câu (Chuẩn - 15 phút)</option>
+            <option value="15">15 câu (Chuyên sâu - 22 phút)</option>
+            <option value="20">20 câu (Thử thách - 30 phút)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center" {% if not banks %}disabled{% endif %}>
+          <i data-lucide="play" style="width:14px;height:14px"></i>
+          Bắt đầu bài tự luyện
+        </button>
+      </form>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

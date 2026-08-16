@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Bảng lương giáo viên - EduCenter{% endblock %}
+{% block page_title %}Thống kê thù lao dạy học{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Thống kê giờ giảng & thù lao tháng</p>
+    <h1>Bảng lương Giáo viên</h1>
+  </div>
+  
+  <!-- Month selection picker -->
+  <form method="GET" style="display: flex; align-items: center; gap: var(--space-2)">
+    <label class="form-label" style="margin-bottom:0">Chọn tháng:</label>
+    <input type="month" name="month" value="{{ month }}" onchange="this.form.submit()" style="width:auto; padding: 6px var(--space-3); height: 38px">
+  </form>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden">
+  <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+    <h3 class="card-title">Chi tiết thù lao dạy học (Tháng {{ month }})</h3>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Giáo viên</th>
+        <th>Mã giáo viên</th>
+        <th>Số buổi dạy</th>
+        <th>Số giờ giảng dạy</th>
+        <th class="text-right">Mức thù lao / giờ</th>
+        <th class="text-right">Dự kiến thanh toán</th>
+        <th class="text-right">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if rows %}
+        {% for row in rows %}
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:var(--space-2)">
+              <img src="{{ url_for('serve_avatar', filename=row.teacher.avatar or 'default.jpg') }}" 
+                   style="width:28px; height:28px; border-radius:50%; object-fit:cover">
+              <span style="font-weight: 500">{{ row.teacher.fullname }}</span>
+            </div>
+          </td>
+          <td><span class="badge badge-upcoming">{{ row.teacher.user_code }}</span></td>
+          <td>{{ row.total_classes }} buổi</td>
+          <td>
+            <div style="display:flex; flex-direction:column; gap:4px">
+              <div style="font-weight: 500">{{ row.total_hours }} giờ</div>
+              {% set pct = (row.total_hours / 40 * 100) %}
+              {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+              <div style="width: 100px; background: var(--surface-3); border-radius: 99px; height: 5px; overflow: hidden">
+                <div style="--pct: {{ pct }}%; background: var(--accent); height: 100%; width: var(--pct)"></div>
+              </div>
+            </div>
+          </td>
+          <td class="money text-right">{{ money(row.teacher.salary_rate_per_hour) }}đ/h</td>
+          <td class="money text-right" style="font-weight: 600; color: var(--accent)">
+            {{ money(row.salary) }}đ
+          </td>
+          <td class="text-right">
+            <a href="{{ url_for('payroll_detail', teacher_id=row.teacher.id, month=month) }}" class="btn btn-ghost btn-sm">
+              Chi tiết giảng dạy
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+            Không tìm thấy thông tin giảng dạy của giáo viên nào trong tháng này.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

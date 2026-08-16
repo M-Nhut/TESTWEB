@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Điểm danh - EduCenter{% endblock %}
+{% block page_title %}Điểm danh lớp học{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Ghi nhận chuyên cần hàng ngày</p>
+    <h1>Chấm điểm danh</h1>
+  </div>
+</div>
+
+<div class="form-grid-3" style="grid-template-columns: 2fr 1fr; align-items: start; gap: var(--space-6)">
+  
+  <!-- Cột trái: Danh sách lớp học để chấm điểm danh -->
+  <div class="card" style="padding: 0; overflow: hidden">
+    <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+      <h3 class="card-title">Các lớp học của bạn</h3>
+    </div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Khóa học</th>
+          <th>Giáo viên</th>
+          <th>Phòng</th>
+          <th class="text-right">Sĩ số</th>
+          <th class="text-right">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if courses %}
+          {% for course in courses %}
+          <tr>
+            <td>
+              <a href="{{ url_for('course_detail', course_id=course.id) }}" style="font-weight: 600">
+                {{ course.course_name }}
+              </a>
+              <span style="font-size: var(--text-xs); color: var(--text-3); display: block">Môn: {{ course.subject }}</span>
+            </td>
+            <td>
+              {% if course.teacher %}
+                <span style="font-size: var(--text-xs); font-weight: 500">{{ course.teacher.fullname }}</span>
+              {% else %}
+                <span style="color: var(--text-3); font-style: italic; font-size: var(--text-xs)">Chưa có GV</span>
+              {% endif %}
+            </td>
+            <td><span class="badge badge-upcoming">{{ course.classroom or 'Chưa xếp' }}</span></td>
+            <td class="text-right money">{{ course.enrollments | length }}</td>
+            <td class="text-right">
+              <a href="{{ url_for('mark_attendance', course_id=course.id) }}" class="btn btn-primary btn-sm">
+                <i data-lucide="check-square" style="width:12px; height:12px"></i>
+                Điểm danh hôm nay
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+              Không tìm thấy lớp học nào để chấm điểm danh.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Cột phải: Lịch sử điểm danh vừa thực hiện -->
+  <div class="card" style="padding: 0; overflow: hidden">
+    <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+      <h3 class="card-title">Nhật ký chấm gần đây</h3>
+    </div>
+    
+    <div style="max-height: 480px; overflow-y: auto">
+      {% if records %}
+        {% for r in records %}
+        <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center">
+          <div style="min-width: 0; flex: 1">
+            <div style="font-weight: 600; font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="{{ r.student.fullname }}">
+              {{ r.student.fullname }}
+            </div>
+            <div style="font-size: 10px; color: var(--text-3)">
+              {{ r.course.course_name }} · {{ r.date.strftime('%d/%m/%Y') }}
+            </div>
+          </div>
+          <div>
+            {% if r.status == 'present' %}
+              <span class="badge badge-present">Có mặt</span>
+            {% elif r.status == 'absent' %}
+              <span class="badge badge-absent">Vắng</span>
+            {% else %}
+              <span class="badge badge-late">Trễ</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding: var(--space-6); text-align: center; color: var(--text-3); font-size: var(--text-sm)">
+          Chưa có lượt điểm danh nào được lưu gần đây.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

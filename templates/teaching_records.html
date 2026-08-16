@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Nhật ký dạy học - EduCenter{% endblock %}
+{% block page_title %}Nhật ký giảng dạy{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Rà soát & đối chiếu giờ dạy học</p>
+    <h1>Báo cáo Giảng dạy</h1>
+  </div>
+  
+  <!-- Filters Bar -->
+  <div class="card" style="padding: var(--space-4) var(--space-6); width: 100%; margin-bottom: var(--space-6)">
+    <form method="GET" action="{{ url_for('my_teaching_records') }}" style="display:flex; flex-wrap:wrap; gap:var(--space-4); align-items:flex-end">
+      
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" style="font-size: var(--text-xs)">Chọn tháng</label>
+        <input type="month" name="month" value="{{ month }}" onchange="this.form.submit()" style="height:34px; padding:4px var(--space-2)">
+      </div>
+
+      {% if current_user.role in ('admin', 'manager') and teachers %}
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" style="font-size: var(--text-xs)">Chọn Giáo viên</label>
+        <select name="teacher_id" onchange="this.form.submit()" style="height:34px; padding:4px var(--space-2); width:180px">
+          <option value="">-- Tất cả giáo viên --</option>
+          {% for teacher in teachers %}
+            <option value="{{ teacher.id }}" {% if selected_teacher_id == teacher.id %}selected{% endif %}>
+              {{ teacher.fullname }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div>
+        <a href="{{ url_for('my_teaching_records') }}" class="btn btn-secondary btn-sm" style="height:34px">
+          Reset bộ lọc
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden">
+  <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+    <h3 class="card-title">Nhật ký giảng dạy (Tháng {{ month }})</h3>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Ngày giảng</th>
+        <th>Giáo viên</th>
+        <th>Khóa học</th>
+        <th>Phòng</th>
+        <th>Giờ giảng</th>
+        <th class="text-right">Giờ dạy</th>
+        <th class="text-right">Thành tiền</th>
+        <th class="text-right">Xác nhận</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if records %}
+        {% for record in records %}
+        <tr>
+          <td style="font-weight: 500">{{ record.date.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:var(--space-2)">
+              <img src="{{ url_for('serve_avatar', filename=record.teacher.avatar or 'default.jpg') }}" 
+                   style="width:24px; height:24px; border-radius:50%; object-fit:cover">
+              <span style="font-size: var(--text-xs); font-weight:500">{{ record.teacher.fullname }}</span>
+            </div>
+          </td>
+          <td>
+            <a href="{{ url_for('course_detail', course_id=record.course.id) }}" style="font-weight: 600">
+              {{ record.course.course_name }}
+            </a>
+          </td>
+          <td><span class="badge badge-upcoming">{{ record.classroom }}</span></td>
+          <td>{{ record.start_time.strftime('%H:%M') }} - {{ record.end_time.strftime('%H:%M') }}</td>
+          <td class="text-right money">{{ record.hours_taught }}h</td>
+          <td class="text-right money" style="font-weight:600; color:var(--accent)">
+            {{ money(record.amount_earned) }}đ
+          </td>
+          <td class="text-right">
+            {% if record.confirmed_by_teacher %}
+              <span class="badge badge-present" title="Đã xác nhận">
+                <i data-lucide="check" style="width:12px; height:12px; margin-right:2px"></i>
+                Đã XN
+              </span>
+            {% else %}
+              <div style="display:inline-flex; gap:var(--space-2); align-items:center">
+                <span class="badge badge-absent">Chưa XN</span>
+                {% if current_user.role == 'teacher' and record.teacher_id == current_user.id %}
+                  <form action="{{ url_for('confirm_teaching', record_id=record.id) }}" method="POST" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding: 2px 6px; font-size:10px">
+                      Xác nhận
+                    </button>
+                  </form>
+                {% elif current_user.role in ('admin', 'manager') %}
+                  <form action="{{ url_for('confirm_teaching', record_id=record.id) }}" method="POST" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding: 2px 6px; font-size:10px">
+                      Xác nhận hộ
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+            Không tìm thấy nhật ký dạy học nào.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

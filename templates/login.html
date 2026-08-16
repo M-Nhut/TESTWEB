@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập - EduCenter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body style="background: var(--surface)">
+<div class="auth-layout">
+  
+  <!-- Left Panel: Decorative -->
+  <div class="auth-panel">
+    <div>
+      <span style="font-size: var(--text-sm); font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-3)">
+        EduCenter
+      </span>
+      <h1>Chào mừng trở lại.</h1>
+      <p style="font-size: var(--text-md); font-weight: 400; line-height: 1.6; color: var(--text-2); max-width: 440px;">
+        Đăng nhập vào hệ thống để theo dõi lịch học, kết quả bài thi, bảng điểm danh và quản lý học vụ trực tuyến của bạn.
+      </p>
+    </div>
+  </div>
+
+  <!-- Right Panel: Login Form -->
+  <div class="auth-form-area">
+    <div class="auth-form">
+      <div style="margin-bottom: var(--space-8)">
+        <div style="display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-6)">
+          <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" style="width:48px; height:48px; border-radius:50%; object-fit:cover; flex-shrink:0; border: 1px solid var(--border)">
+          <div>
+            <h1 style="font-size:18px; font-weight:800; color:var(--accent); line-height:1.2; margin:0">EduCenter</h1>
+            <span style="font-size:11px; color:var(--text-3); font-weight:500; margin-top:0">Trung tâm Dạy kèm Chất lượng</span>
+          </div>
+        </div>
+        <h2 style="font-family: 'Inter', sans-serif; font-size: var(--text-2xl); font-weight: 700; color: var(--text-1)">
+          Đăng nhập
+        </h2>
+        <p style="font-size: var(--text-sm); color: var(--text-2); margin-top: var(--space-1)">
+          Nhập tài khoản của bạn để tiếp tục
+        </p>
+      </div>
+
+      <!-- Flash messages inside auth layout -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div style="margin-bottom: var(--space-4); border-radius: var(--radius-sm); overflow: hidden">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}" style="padding: var(--space-2) var(--space-4)">
+                <span style="font-size: var(--text-xs)">{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST">
+        {{ form.hidden_tag() }}
+        
+        <div class="form-group">
+          {{ form.username.label(class="form-label") }}
+          {{ form.username(placeholder="Tên đăng nhập") }}
+          {% if form.username.errors %}
+            {% for error in form.username.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <div class="form-group" style="margin-bottom: var(--space-6)">
+          {{ form.password.label(class="form-label") }}
+          {{ form.password(placeholder="••••••••") }}
+          {% if form.password.errors %}
+            {% for error in form.password.errors %}
+              <span class="form-hint" style="color: var(--danger)">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <div style="margin-bottom: var(--space-6)">
+          {{ form.submit(class="btn btn-primary", style="width: 100%; padding: 10px") }}
+        </div>
+      </form>
+
+      <div style="text-align: center; font-size: var(--text-sm)">
+        <span style="color: var(--text-2)">Chưa có tài khoản?</span>
+        <a href="{{ url_for('register') }}" style="font-weight: 600">Đăng ký ngay</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

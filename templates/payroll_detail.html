@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Chi tiết thù lao - EduCenter{% endblock %}
+{% block page_title %}Chi tiết thù lao Giáo viên{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Thống kê giảng dạy giáo viên {{ teacher.fullname }}</p>
+    <h1>Chi tiết thù lao tháng {{ month }}</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('payroll', month=month) }}" class="btn btn-secondary">Quay lại bảng lương</a>
+  </div>
+</div>
+
+<!-- Teacher Brief Info -->
+<div class="card" style="display:flex; flex-direction:row; align-items:center; gap:var(--space-4); margin-bottom:var(--space-6)">
+  <img src="{{ url_for('serve_avatar', filename=teacher.avatar or 'default.jpg') }}" 
+       style="width:56px; height:56px; border-radius:50%; object-fit:cover; border:2px solid var(--border)">
+  <div>
+    <h2 style="margin:0; font-family: 'Fraunces', serif; font-size:var(--text-lg)">{{ teacher.fullname }}</h2>
+    <p style="color:var(--text-3); font-size:var(--text-sm)">
+      Mã giáo viên: <span style="font-weight:600">{{ teacher.user_code }}</span> · 
+      SĐT: <span style="font-weight:600">{{ teacher.phone or 'Chưa cập nhật' }}</span> · 
+      Lương cơ sở: <span style="font-weight:600; color:var(--accent)">{{ money(teacher.salary_rate_per_hour) }}đ/giờ</span>
+    </p>
+  </div>
+</div>
+
+<!-- Payroll KPI statistics -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Tổng số buổi dạy</div>
+    <div class="stat-value">{{ summary.total_classes }} buổi</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Tổng số giờ dạy</div>
+    <div class="stat-value">{{ summary.total_hours }} giờ</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Buổi đã xác nhận</div>
+    <div class="stat-value" style="color: var(--success)">{{ summary.confirmed }} buổi</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Thù lao thực lĩnh (Đã XN)</div>
+    <div class="stat-value" style="color: var(--accent); font-size: var(--text-xl)">{{ money(summary.salary) }}đ</div>
+  </div>
+</div>
+
+{% if summary.unconfirmed > 0 %}
+<div class="flash flash-warning" style="margin-bottom: var(--space-6); border-radius: var(--radius-sm)">
+  <i data-lucide="alert-triangle" style="width:16px;height:16px"></i>
+  <span>Bạn có <strong>{{ summary.unconfirmed }}</strong> buổi dạy chưa được xác nhận trong tháng này. Hãy rà soát danh sách bên dưới và click xác nhận.</span>
+</div>
+{% endif %}
+
+<!-- Teaching record detailed table -->
+<div class="card" style="padding: 0; overflow: hidden">
+  <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+    <h3 class="card-title">Nhật ký giảng dạy chi tiết</h3>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Ngày giảng dạy</th>
+        <th>Khóa học</th>
+        <th>Phòng học</th>
+        <th>Khung giờ</th>
+        <th class="text-right">Số giờ giảng</th>
+        <th class="text-right">Thù lao buổi dạy</th>
+        <th class="text-right">Trạng thái xác nhận</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if records %}
+        {% for record in records %}
+        <tr>
+          <td style="font-weight: 500">{{ record.date.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <a href="{{ url_for('course_detail', course_id=record.course.id) }}" style="font-weight: 600">
+              {{ record.course.course_name }}
+            </a>
+          </td>
+          <td><span class="badge badge-upcoming">{{ record.classroom }}</span></td>
+          <td>{{ record.start_time.strftime('%H:%M') }} - {{ record.end_time.strftime('%H:%M') }}</td>
+          <td class="text-right money">{{ record.hours_taught }} giờ</td>
+          <td class="text-right money" style="font-weight: 500; color: var(--accent)">
+            {{ money(record.amount_earned) }}đ
+          </td>
+          <td class="text-right">
+            {% if record.confirmed_by_teacher %}
+              <span class="badge badge-present" title="Xác nhận lúc {{ record.confirmed_at.strftime('%H:%M %d/%m/%Y') if record.confirmed_at else 'Chưa rõ' }}">
+                <i data-lucide="check" style="width:12px; height:12px; margin-right:4px"></i>
+                Đã xác nhận
+              </span>
+            {% else %}
+              <div style="display:inline-flex; gap: var(--space-2); align-items:center">
+                <span class="badge badge-absent" style="margin-right: var(--space-2)">Chưa xác nhận</span>
+                {% if current_user.role == 'teacher' and record.teacher_id == current_user.id %}
+                  <form action="{{ url_for('confirm_teaching', record_id=record.id) }}" method="POST" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding: 3px 8px; font-size:11px">
+                      Xác nhận
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+            Không có nhật ký giảng dạy nào trong tháng này.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

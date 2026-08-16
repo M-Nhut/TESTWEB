@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Kết Quả Học Tập Của Con - EduCenter{% endblock %}
+{% block page_title %}Theo dõi kết quả học tập của con{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Dành cho Phụ Huynh · {{ student.fullname }} ({{ student.user_code }})</p>
+    <h1>Báo cáo học tập cá nhân</h1>
+  </div>
+</div>
+
+<!-- Student Info Card -->
+<div class="card" style="margin-bottom:var(--space-6)">
+  <div style="display:flex; align-items:center; gap:var(--space-4)">
+    <img src="{{ url_for('serve_avatar', filename=student.avatar or 'default.jpg') }}" style="width:56px; height:56px; border-radius:50%; object-fit:cover">
+    <div>
+      <h2 style="margin:0">{{ student.fullname }}</h2>
+      <p style="font-size:var(--text-sm); color:var(--text-2); margin:0">Học sinh: {{ student.position or 'Trung tâm EduCenter' }} · Mã HS: {{ student.user_code }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- Profiles grid by Subject -->
+<h2 style="font-size:var(--text-lg); margin-bottom:var(--space-4)">Năng lực học tập theo môn</h2>
+<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:var(--space-6); margin-bottom:var(--space-8)">
+  {% for sub, prof in profiles.items() %}
+    <div class="card" style="margin-bottom:0">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3)">
+        <span class="badge badge-open" style="font-size:var(--text-sm)">{{ sub }}</span>
+        <span class="badge" :class="{'badge-present': '{{ prof.adaptive_difficulty }}' === 'challenge', 'badge-upcoming': '{{ prof.adaptive_difficulty }}' === 'standard', 'badge-absent': '{{ prof.adaptive_difficulty }}' === 'reinforce'}">
+          {% if prof.adaptive_difficulty == 'reinforce' %}Cần củng cố thêm{% elif prof.adaptive_difficulty == 'challenge' %}Học lực Giỏi / Khá{% else %}Học lực Khá / TB{% endif %}
+        </span>
+      </div>
+
+      <div style="background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:var(--radius-md); margin-bottom:var(--space-4)">
+        <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-1)">
+          <span style="font-size:var(--text-xs); color:var(--text-2)">Điểm TB bài làm</span>
+          <strong style="color:var(--accent); font-size:var(--text-lg)">{{ prof.avg_score }}/10</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:var(--text-xs); color:var(--text-2)">
+          <span>Tổng số bài đã nộp: <strong>{{ prof.total_attempts }}</strong></span>
+          <span>Xu hướng: <strong>{% if prof.score_trend == 'improving' %}📈 Tiến bộ{% elif prof.score_trend == 'declining' %}📉 Cần chú ý{% else %}➡️ Ổn định{% endif %}</strong></span>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Recent Submissions History -->
+<div class="card" style="padding:0; overflow:hidden">
+  <div class="card-header" style="padding:var(--space-4) var(--space-6)">
+    <h3 class="card-title">Bài kiểm tra & Bài luyện gần nhất</h3>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Thời gian nộp</th>
+        <th>Tên bài làm</th>
+        <th>Loại bài</th>
+        <th class="text-right">Điểm số đạt được</th>
+        <th>Trạng thái</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if recent_submissions %}
+        {% for sub in recent_submissions %}
+          <tr>
+            <td>{{ sub.submitted_at.strftime('%H:%M %d/%m/%Y') if sub.submitted_at else 'Chưa nộp' }}</td>
+            <td style="font-weight:500">{{ sub.exam.title if sub.exam else 'Bài kiểm tra' }}</td>
+            <td>
+              <span class="badge {% if sub.exam_type == 'practice' %}badge-upcoming{% else %}badge-open{% endif %}">
+                {{ 'Tự luyện' if sub.exam_type == 'practice' else 'Kiểm tra' }}
+              </span>
+            </td>
+            <td class="text-right" style="font-weight:600; color:var(--accent)">
+              {{ sub.total_score }}/{{ sub.max_score }} ({{ sub.percentage }}%)
+            </td>
+            <td>
+              <span class="badge badge-present">Đã hoàn thành</span>
+            </td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="5" style="text-align:center; color:var(--text-3); padding:var(--space-8)">
+            Chưa có bài kiểm tra hoặc bài tự luyện nào được ghi nhận.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

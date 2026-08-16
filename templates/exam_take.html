@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Đang làm bài: {{ exam.title }} - EduCenter{% endblock %}
+
+{% block head %}
+<!-- Prevent user from easily navigating away or refreshing accidentally -->
+<script>
+  window.onbeforeunload = function() {
+    return "Bạn có chắc chắn muốn rời khỏi trang? Tiến trình làm bài của bạn có thể bị mất.";
+  };
+  function confirmSubmit() {
+    window.onbeforeunload = null;
+    return true;
+  }
+</script>
+{% endblock %}
+
+{% block content %}
+<div x-data="{
+  remaining: {{ exam.duration_minutes }} * 60,
+  answered: {},
+  totalQ: {{ questions|length }},
+  get formattedTime() {
+    const m = Math.floor(this.remaining / 60);
+    const s = this.remaining % 60;
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  },
+  get isWarning() { return this.remaining < 300; }
+}"
+x-init="
+  setInterval(() => {
+    if (remaining > 0) {
+      remaining--;
+    } else {
+      window.onbeforeunload = null;
+      document.getElementById('exam-form').submit();
+    }
+  }, 1000)
+">
+
+  <!-- Sticky header with countdown timer and stats -->
+  <div class="card" style="position:sticky; top:56px; z-index:20; background:var(--surface); border-color:var(--border-strong); padding:var(--space-3) var(--space-6); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:var(--space-3); box-shadow: var(--shadow-md)">
+    <div>
+      <span style="font-weight:600; color: var(--text-1)">{{ exam.title }}</span>
+      <span style="color:var(--text-3); font-size:var(--text-sm)">
+        · {{ questions|length }} câu hỏi · {{ exam.total_points }} điểm
+      </span>
+    </div>
+    
+    <div style="display:flex; align-items:center; gap:var(--space-4)">
+      <!-- Progress counter -->
+      <span style="font-size:var(--text-sm); color:var(--text-2)">
+        Đã trả lời: <span x-text="Object.keys(answered).length" style="font-weight:600; color: var(--accent)"></span>/{{ questions|length }}
+      </span>
+      
+      <!-- Countdown timer -->
+      <div x-bind:style="isWarning ? 'color:var(--danger); font-weight:700' : 'color:var(--text-1); font-weight:600'"
+           style="font-family:'Fraunces', serif; font-size:var(--text-xl); font-style:italic"
+           x-text="formattedTime">
+      </div>
+    </div>
+  </div>
+
+  <form id="exam-form" method="POST" enctype="multipart/form-data" onsubmit="return confirmSubmit()">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Loop through questions -->
+    {% for q in questions %}
+    <div class="card" style="margin-bottom:var(--space-4)" id="q-{{ loop.index }}">
+      
+      <!-- Question header -->
+      <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-4); border-bottom:1px solid var(--surface-2); padding-bottom:var(--space-2)">
+        <span style="font-size:var(--text-xs); font-weight:600; letter-spacing:0.5px; color:var(--text-3); text-transform:uppercase">
+          Câu {{ loop.index }} · 
+          {% if q.question_type == 'single' %}
+            Một lựa chọn
+          {% elif q.question_type == 'multi' %}
+            Nhiều lựa chọn
+          {% elif q.question_type in ('truefalse', 'true_false') %}
+            Đúng / Sai
+          {% else %}
+            Tự luận / Trả lời ngắn
+          {% endif %}
+        </span>
+        <span style="font-size:var(--text-sm); color:var(--text-2); font-weight:500">{{ q.points }} điểm</span>
+      </div>
+
+      <!-- Question Text -->
+      <p style="font-weight:500; font-size: var(--text-md); margin-bottom:var(--space-4); line-height:1.6; color: var(--text-1)">
+        {{ q.question_text }}
+      </p>
+
+      <!-- Answer Choices -->
+      {% if q.question_type in ('truefalse', 'true_false') %}
+        <!-- True/False Table Form -->
+        <div style="display:flex; flex-direction:column; gap:var(--space-2)">
+          <div style="display:grid; grid-template-columns: 1fr 100px 100px; gap:var(--space-2); padding:var(--space-2) var(--space-4); background:var(--surface-2); border-radius:var(--radius-sm); font-weight:600; font-size:var(--text-xs); color:var(--text-2); text-transform:uppercase">
+            <div>Mệnh đề / Phát biểu</div>
+            <div style="text-align:center">Đúng</div>
+            <div style="text-align:center">Sai</div>
+          </div>
+          {% for answer in q._shuffled_answers %}
+          <div style="display:grid; grid-template-columns: 1fr 100px 100px; gap:var(--space-2); align-items:center; padding:var(--space-3) var(--space-4); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface)">
+            <div style="font-size:var(--text-sm); color:var(--text-1); font-weight:500">
+              {{ answer.answer_text }}
+            </div>
+            <div style="text-align:center">
+              <label style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding:4px 8px">
+                <input type="radio" name="q_{{ q.id }}_ans_{{ answer.id }}" value="1" @change="answered['{{ q.id }}'] = true">
+                <span style="font-size:var(--text-xs); font-weight:600; color:var(--success)">Đúng</span>
+              </label>
+            </div>
+            <div style="text-align:center">
+              <label style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding:4px 8px">
+                <input type="radio" name="q_{{ q.id }}_ans_{{ answer.id }}" value="0" @change="answered['{{ q.id }}'] = true">
+                <span style="font-size:var(--text-xs); font-weight:600; color:var(--danger)">Sai</span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif q.question_type in ('short_answer', 'essay', 'tu_luan') %}
+        <!-- Essay / Short Answer / File Upload Form -->
+        <div style="display:flex; flex-direction:column; gap:var(--space-4)">
+          <div>
+            <label style="font-size:var(--text-xs); font-weight:600; color:var(--text-2); margin-bottom:var(--space-1); display:block">
+              Nội dung câu trả lời tự luận:
+            </label>
+            <textarea name="q_{{ q.id }}_text" rows="4" style="width:100%; border:1px solid var(--border); border-radius:var(--radius-sm); padding:var(--space-3); font-family:inherit; font-size:var(--text-sm); background:var(--surface); color:var(--text-1)" placeholder="Nhập câu trả lời hoặc câu đáp của bạn..." @input="if($event.target.value.trim()) answered['{{ q.id }}'] = true"></textarea>
+          </div>
+          <div>
+            <label style="font-size:var(--text-xs); font-weight:600; color:var(--text-2); margin-bottom:var(--space-1); display:block">
+              Đính kèm file / Ảnh chụp bài làm (Tùy chọn):
+            </label>
+            <input type="file" name="q_{{ q.id }}_file" accept="image/*,.pdf,.doc,.docx" style="font-size:var(--text-xs); border:1px solid var(--border); border-radius:var(--radius-sm); padding:var(--space-2); width:100%; background:var(--surface); color:var(--text-1)" @change="if($event.target.files.length) answered['{{ q.id }}'] = true">
+          </div>
+        </div>
+
+      {% else %}
+        <!-- Single / Multi Choice Form -->
+        <div style="display:flex; flex-direction:column; gap:var(--space-2)">
+          {% for answer in q._shuffled_answers %}
+          <label style="display:flex; align-items:center; gap:var(--space-3);
+                        padding:var(--space-3) var(--space-4);
+                        border:1px solid var(--border);
+                        border-radius:var(--radius-sm);
+                        cursor:pointer;
+                        transition:all var(--ease);
+                        background: var(--surface);"
+                 onmouseover="this.style.borderColor='var(--accent)';"
+                 onmouseout="this.style.borderColor='var(--border)';"
+                 class="checkbox-label">
+            
+            <input type="{{ 'checkbox' if q.question_type == 'multi' else 'radio' }}"
+                   name="q_{{ q.id }}"
+                   value="{{ answer.id }}"
+                   @change="answered['{{ q.id }}'] = true">
+            
+            <span style="font-size:var(--text-sm); color: var(--text-2)">{{ answer.answer_text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Form submission button -->
+    <div style="display:flex; justify-content:center; padding:var(--space-8) 0">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Nộp bài kiểm tra? Bạn không thể chỉnh sửa sau khi nộp.')"
+              style="padding:12px 48px; font-size:var(--text-md)">
+        <i data-lucide="send" style="width:16px; height:16px"></i>
+        Nộp bài thi
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

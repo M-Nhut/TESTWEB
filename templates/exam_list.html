@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Đánh giá & Bài kiểm tra - EduCenter{% endblock %}
+{% block page_title %}Danh sách Bài kiểm tra{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Đánh giá năng lực & kiểm tra định kỳ</p>
+    <h1>Bài kiểm tra</h1>
+  </div>
+  
+  {% if current_user.role in ('admin', 'manager', 'teacher') %}
+  <div>
+    <a href="{{ url_for('create_exam') }}" class="btn btn-primary">
+      <i data-lucide="plus" style="width:14px;height:14px"></i>
+      Tạo bài kiểm tra mới
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% if current_user.role in ('student', 'parent') %}
+  <!-- Student Cards View -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4)">
+    {% if exams %}
+      {% for exam in exams %}
+        {% set submission = submissions_map.get(exam.id) if submissions_map else None %}
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-3)">
+              <div style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap">
+                <span class="badge badge-upcoming">{{ exam.course.course_name }}</span>
+                {% if exam.exam_category %}
+                  <span class="badge" style="background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-2)">{{ exam.exam_category }}</span>
+                {% endif %}
+              </div>
+              
+              <!-- Exam status label -->
+              {% if exam.status_label == 'open' %}
+                <span class="badge badge-open">Đang diễn ra</span>
+              {% elif exam.status_label == 'upcoming' %}
+                <span class="badge badge-upcoming">Sắp diễn ra</span>
+              {% else %}
+                <span class="badge badge-closed">Đã đóng</span>
+              {% endif %}
+            </div>
+
+            <h3 style="font-family: 'Fraunces', serif; font-size: var(--text-md); font-weight: 600; line-height: 1.4; margin-bottom: var(--space-3)">
+              {{ exam.title }}
+            </h3>
+
+            <div style="font-size: var(--text-xs); color: var(--text-2); display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--space-4)">
+              <div><i data-lucide="clock" style="width:12px; height:12px; vertical-align:middle; margin-right:4px"></i> <strong>Thời gian:</strong> {{ exam.duration_minutes }} phút</div>
+              <div><i data-lucide="help-circle" style="width:12px; height:12px; vertical-align:middle; margin-right:4px"></i> <strong>Số câu hỏi:</strong> {{ exam.question_count }} câu</div>
+              <div><i data-lucide="award" style="width:12px; height:12px; vertical-align:middle; margin-right:4px"></i> <strong>Điểm số:</strong> {{ exam.total_points }} điểm</div>
+              {% if exam.start_time %}
+                <div><i data-lucide="calendar" style="width:12px; height:12px; vertical-align:middle; margin-right:4px"></i> <strong>Bắt đầu:</strong> {{ exam.start_time.strftime('%H:%M %d/%m/%Y') }}</div>
+              {% endif %}
+              {% if exam.end_time %}
+                <div><i data-lucide="calendar" style="width:12px; height:12px; vertical-align:middle; margin-right:4px"></i> <strong>Hạn nộp:</strong> {{ exam.end_time.strftime('%H:%M %d/%m/%Y') }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border); padding-top: var(--space-3); margin-top: var(--space-2)">
+            {% if submission %}
+              <div style="display: flex; align-items: center; justify-content: space-between">
+                <span class="badge badge-present" style="font-weight: 600">
+                  {% if submission.is_graded %}
+                    Đạt: {{ submission.total_score }} / {{ submission.max_score }} đ
+                  {% else %}
+                    Đã nộp bài
+                  {% endif %}
+                </span>
+                <a href="{{ url_for('exam_result', exam_id=exam.id) }}" class="btn btn-secondary btn-sm">
+                  Xem kết quả
+                </a>
+              </div>
+            {% else %}
+              {% if exam.status_label == 'open' %}
+                <a href="{{ url_for('take_exam', exam_id=exam.id) }}" class="btn btn-primary btn-sm" style="width: 100%; text-align: center" onclick="return confirm('Bắt đầu làm bài kiểm tra? Thời gian sẽ được tính ngay khi bạn bấm xác nhận.')">
+                  Bắt đầu làm bài
+                </a>
+              {% else %}
+                <button type="button" class="btn btn-secondary btn-sm" style="width: 100%" disabled>
+                  Chưa mở / Đã đóng
+                </button>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="card" style="grid-column: 1 / -1; text-align: center; color: var(--text-3); padding: var(--space-8)">
+        Không có bài kiểm tra nào được xếp lịch cho bạn.
+      </div>
+    {% endif %}
+  </div>
+
+{% else %}
+  <!-- Teacher / Admin Table View -->
+  <div class="card" style="padding: 0; overflow: hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Tên bài kiểm tra</th>
+          <th>Khóa học</th>
+          <th>Thời gian</th>
+          <th>Số câu / Điểm</th>
+          <th>Mở lúc</th>
+          <th>Đóng lúc</th>
+          <th>Trạng thái</th>
+          <th class="text-right">Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if exams %}
+          {% for exam in exams %}
+          <tr>
+            <td>
+              <span style="font-weight: 600">{{ exam.title }}</span>
+              <span style="font-size: var(--text-xs); color: var(--text-3); display: block">Tạo bởi: {{ exam.creator.fullname }}</span>
+            </td>
+            <td>{{ exam.course.course_name }}</td>
+            <td>{{ exam.duration_minutes }} phút</td>
+            <td>{{ exam.question_count }} câu / {{ exam.total_points }}đ</td>
+            <td>{{ exam.start_time.strftime('%H:%M %d/%m/%Y') if exam.start_time else 'Chưa cài' }}</td>
+            <td>{{ exam.end_time.strftime('%H:%M %d/%m/%Y') if exam.end_time else 'Chưa cài' }}</td>
+            <td>
+              {% if exam.status_label == 'open' %}
+                <span class="badge badge-open">Đang mở</span>
+              {% elif exam.status_label == 'upcoming' %}
+                <span class="badge badge-upcoming">Sắp diễn ra</span>
+              {% else %}
+                <span class="badge badge-closed">Đã đóng</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              <div style="display:inline-flex; gap: var(--space-1)">
+                <a href="{{ url_for('exam_result', exam_id=exam.id) }}" class="btn btn-ghost btn-sm" title="Kết quả nộp bài">
+                  Kết quả
+                </a>
+                <a href="{{ url_for('edit_exam', exam_id=exam.id) }}" class="btn btn-ghost btn-sm" style="color:var(--accent)" title="Sửa đề thi">
+                  Sửa
+                </a>
+                <form action="{{ url_for('delete_exam', exam_id=exam.id) }}" method="POST" style="display:inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa bài kiểm tra này?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)" title="Xóa đề thi">
+                    Xóa
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+              Chưa có bài kiểm tra nào được tạo.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

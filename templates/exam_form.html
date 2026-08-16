@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Cập nhật' if exam else 'Tạo' }} Đề thi - EduCenter{% endblock %}
+{% block page_title %}{{ 'Chỉnh sửa đề thi' if exam else 'Tạo bài kiểm tra mới' }}{% endblock %}
+
+{% block content %}
+<script id="exam-questions-json" type="application/json">
+[
+  {% if exam %}
+    {% for q in exam.questions %}
+    {
+      "text": {{ q.question_text | tojson }},
+      "type": {{ q.question_type | tojson }},
+      "points": {{ q.points }},
+      "answers": [
+        {% for a in q.answers %}
+        {
+          "text": {{ a.answer_text | tojson }},
+          "correct": {{ 'true' if a.is_correct else 'false' }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  {% endif %}
+]
+</script>
+
+<div x-data="{
+  mode: '{{ "manual" if (exam or not banks) else "bank" }}',
+  selectedBankId: '{{ exam.question_bank_id if (exam and exam.question_bank_id) else "" }}',
+  totalQuestionsNeeded: {{ exam.total_questions if (exam and exam.total_questions) else 10 }},
+  bankCheckResult: null,
+  isCheckingBank: false,
+  questions: JSON.parse(document.getElementById('exam-questions-json')?.textContent || '[]'),
+  addQuestion() {
+    this.questions.push({
+      text: '',
+      type: 'single',
+      points: 1.0,
+      answers: [
+        {text: '', correct: false},
+        {text: '', correct: false},
+        {text: '', correct: false},
+        {text: '', correct: false}
+      ]
+    });
+  },
+  removeQuestion(qi) {
+    this.questions.splice(qi, 1);
+  },
+  addAnswer(qi) {
+    this.questions[qi].answers.push({text: '', correct: false});
+  },
+  removeAnswer(qi, ai) {
+    this.questions[qi].answers.splice(ai, 1);
+  },
+  changeType(q, type) {
+    q.type = type;
+    if (type === 'truefalse') {
+      q.answers = [
+        {text: 'Đúng', correct: true},
+        {text: 'Sai', correct: false}
+      ];
+    } else if (q.answers.length === 2 && (q.answers[0].text === 'Đúng' || q.answers[0].text === 'Sai')) {
+      q.answers = [
+        {text: '', correct: false},
+        {text: '', correct: false},
+        {text: '', correct: false},
+        {text: '', correct: false}
+      ];
+    }
+  },
+  checkBank() {
+    if (!this.selectedBankId) return;
+    this.isCheckingBank = true;
+    fetch('/api/exam/check-bank', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
+      body: JSON.stringify({
+        bank_id: this.selectedBankId,
+        total_questions: this.totalQuestionsNeeded
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      this.isCheckingBank = false;
+      if (data.success) {
+        this.bankCheckResult = data;
+      }
+    });
+  }
+}" x-init="if(questions.length === 0) addQuestion()">
+
+  <div class="page-header">
+    <div class="page-title-area">
+      <p>Cổng quản trị học vụ</p>
+      <h1>{{ 'Chỉnh sửa đề thi' if exam else 'Tạo đề kiểm tra' }}</h1>
+    </div>
+    <div>
+      <a href="{{ url_for('exam_list') }}" class="btn btn-secondary">Quay lại</a>
+    </div>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="creation_mode" :value="mode">
+
+    <!-- Basic Exam Info -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Thông tin bài kiểm tra</h3>
+      </div>
+      
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="title">Tiêu đề đề thi *</label>
+          <input type="text" id="title" name="title" value="{{ exam.title if exam else '' }}" required placeholder="Ví dụ: Kiểm tra môn Toán">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="exam_category">Loại bài kiểm tra *</label>
+          <select id="exam_category" name="exam_category" required>
+            <option value="Kiểm tra thường kỳ" {% if not exam or exam.exam_category == 'Kiểm tra thường kỳ' %}selected{% endif %}>Kiểm tra thường kỳ</option>
+            <option value="Kiểm tra giữa kỳ" {% if exam and exam.exam_category == 'Kiểm tra giữa kỳ' %}selected{% endif %}>Kiểm tra giữa kỳ</option>
+            <option value="Kiểm tra cuối kỳ" {% if exam and exam.exam_category == 'Kiểm tra cuối kỳ' %}selected{% endif %}>Kiểm tra cuối kỳ</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="course_id">Lớp học / Khóa học *</label>
+          <select id="course_id" name="course_id" required>
+            <option value="">-- Chọn lớp học --</option>
+            {% for course in courses %}
+              <option value="{{ course.id }}" {% if exam and exam.course_id == course.id %}selected{% endif %}>
+                {{ course.course_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="duration_minutes">Thời gian làm bài (Phút)</label>
+          <input type="number" id="duration_minutes" name="duration_minutes" value="{{ exam.duration_minutes if exam else 30 }}" min="5" max="300">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Thời gian mở / đóng (Tùy chọn)</label>
+        <div style="display:flex; gap:var(--space-2)">
+          <input type="datetime-local" name="start_time" value="{{ exam.start_time.strftime('%Y-%m-%dT%H:%M') if exam and exam.start_time else '' }}" style="font-size:12px">
+          <input type="datetime-local" name="end_time" value="{{ exam.end_time.strftime('%Y-%m-%dT%H:%M') if exam and exam.end_time else '' }}" style="font-size:12px">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:var(--space-6); margin-top:var(--space-3)">
+        <label class="checkbox-label">
+          <input type="checkbox" name="shuffle_questions" value="1" {% if not exam or exam.shuffle_questions %}checked{% endif %}>
+          <span>Trộn thứ tự câu hỏi</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="shuffle_answers" value="1" {% if not exam or exam.shuffle_answers %}checked{% endif %}>
+          <span>Trộn thứ tự đáp án</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_active" value="1" {% if not exam or exam.is_active %}checked{% endif %}>
+          <span>Kích hoạt đề thi</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    {% if not exam %}
+    <div style="display:flex; gap:var(--space-3); margin-bottom:var(--space-4)">
+      <button type="button" class="btn" :class="mode === 'bank' ? 'btn-primary' : 'btn-secondary'" @click="mode = 'bank'">
+        <i data-lucide="database" style="width:14px;height:14px"></i>
+        Tạo tự động ngẫu nhiên từ Ngân hàng câu hỏi
+      </button>
+      <button type="button" class="btn" :class="mode === 'manual' ? 'btn-primary' : 'btn-secondary'" @click="mode = 'manual'">
+        <i data-lucide="edit-3" style="width:14px;height:14px"></i>
+        Nhập thủ công từng câu
+      </button>
+    </div>
+    {% endif %}
+
+    <!-- BANK CREATION MODE -->
+    <div x-show="mode === 'bank'" class="card">
+      <div class="card-header">
+        <h3 class="card-title">Cấu hình lấy đề ngẫu nhiên từ Ngân hàng câu hỏi</h3>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Chọn Ngân hàng câu hỏi *</label>
+          <select name="question_bank_id" x-model="selectedBankId" @change="checkBank()" :required="mode === 'bank'" :disabled="mode !== 'bank'">
+            <option value="">-- Chọn ngân hàng câu hỏi --</option>
+            {% for bank in banks %}
+              <option value="{{ bank.id }}">{{ bank.name }} ({{ bank.subject }} · {{ bank.question_count }} câu)</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tổng số câu hỏi cần tạo *</label>
+          <input type="number" name="total_questions" x-model.number="totalQuestionsNeeded" @input="checkBank()" min="1" max="100" :required="mode === 'bank'" :disabled="mode !== 'bank'">
+        </div>
+      </div>
+
+      <!-- Bank Availability Badge / Warning -->
+      <div x-show="bankCheckResult" style="margin-bottom:var(--space-4); padding:var(--space-3) var(--space-4); border-radius:var(--radius-md); font-size:var(--text-sm)"
+           :style="bankCheckResult && bankCheckResult.is_sufficient ? 'background:var(--success-light); color:var(--success)' : 'background:var(--warning-light); color:#92400e'">
+        <template x-if="bankCheckResult && bankCheckResult.is_sufficient">
+          <div>✓ Ngân hàng có sẵn <strong x-text="bankCheckResult.available_total"></strong> câu (Đủ tạo đề <span x-text="bankCheckResult.total_needed"></span> câu).</div>
+        </template>
+        <template x-if="bankCheckResult && !bankCheckResult.is_sufficient">
+          <div>⚠ Ngân hàng hiện chỉ có <strong x-text="bankCheckResult.available_total"></strong> câu (Ít hơn <span x-text="bankCheckResult.total_needed"></span> câu yêu cầu). Hệ thống sẽ lấy tất cả câu có sẵn.</div>
+        </template>
+      </div>
+
+      <!-- Difficulty distribution config -->
+      <label class="form-label">Tỷ lệ Ma trận Độ khó (%)</label>
+      <div class="form-grid-3" style="margin-bottom:var(--space-4)">
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px">Nhận biết (%)</label>
+          <input type="number" name="diff_nhan_biet" value="40" min="0" max="100" :disabled="mode !== 'bank'">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px">Vận dụng (%)</label>
+          <input type="number" name="diff_van_dung" value="30" min="0" max="100" :disabled="mode !== 'bank'">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px">Vận dụng cao (%)</label>
+          <input type="number" name="diff_van_dung_cao" value="30" min="0" max="100" :disabled="mode !== 'bank'">
+        </div>
+      </div>
+
+      <!-- Question type distribution config -->
+      <label class="form-label">Tỷ lệ Dạng câu hỏi (%)</label>
+      <div class="form-grid-3">
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px">Trắc nghiệm (%)</label>
+          <input type="number" name="type_single" value="50" min="0" max="100" :disabled="mode !== 'bank'">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px">Đúng / Sai (%)</label>
+          <input type="number" name="type_truefalse" value="30" min="0" max="100" :disabled="mode !== 'bank'">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px">Trả lời ngắn (%)</label>
+          <input type="number" name="type_short_answer" value="20" min="0" max="100" :disabled="mode !== 'bank'">
+        </div>
+      </div>
+    </div>
+
+    <!-- MANUAL CREATION MODE -->
+    <div x-show="mode === 'manual'">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4)">
+        <h3>Danh sách câu hỏi nhập thủ công</h3>
+        <button type="button" class="btn btn-secondary btn-sm" @click="addQuestion()">
+          <i data-lucide="plus" style="width:14px;height:14px"></i> Thêm câu hỏi
+        </button>
+      </div>
+
+      <template x-for="(q, qi) in questions" :key="qi">
+        <div class="card" style="border-left: 3px solid var(--accent)">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3)">
+            <strong x-text="'Câu hỏi #' + (qi + 1)"></strong>
+            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger)" @click="removeQuestion(qi)" x-show="questions.length > 1">
+              Xóa câu hỏi
+            </button>
+          </div>
+
+          <div class="form-grid-2" style="margin-bottom:var(--space-3)">
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Dạng câu hỏi</label>
+              <select :name="'question_' + qi + '_type'" x-model="q.type" @change="changeType(q, $event.target.value)" :disabled="mode !== 'manual'">
+                <option value="single">Trắc nghiệm (1 đáp án)</option>
+                <option value="truefalse">Đúng / Sai</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Điểm số</label>
+              <input type="number" step="0.5" :name="'question_' + qi + '_points'" x-model="q.points" :disabled="mode !== 'manual'">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nội dung câu hỏi *</label>
+            <textarea :name="'question_' + qi + '_text'" x-model="q.text" rows="2" :required="mode === 'manual'" :disabled="mode !== 'manual'" placeholder="Nhập câu hỏi..."></textarea>
+          </div>
+
+          <!-- Answers list -->
+          <div style="margin-top:var(--space-3)">
+            <label class="form-label">Phương án trả lời (Đánh dấu đáp án đúng)</label>
+            <template x-for="(a, ai) in q.answers" :key="ai">
+              <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2)">
+                <input type="radio" :name="'question_' + qi + '_correct'" :value="ai" :checked="a.correct" @change="q.answers.forEach((ans, i) => ans.correct = (i === ai))" :disabled="mode !== 'manual'">
+                <span style="font-weight:600; width:20px" x-text="String.fromCharCode(65 + ai) + '.'"></span>
+                <input type="text" :name="'question_' + qi + '_answer_' + ai + '_text'" x-model="a.text" style="flex:1" placeholder="Phương án..." :disabled="mode !== 'manual'">
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Submit bar -->
+    <div style="display:flex; gap:var(--space-3); margin-top:var(--space-6)">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i data-lucide="check" style="width:16px;height:16px"></i>
+        {{ 'Cập nhật đề thi' if exam else 'Tạo đề thi ngay' }}
+      </button>
+      <a href="{{ url_for('exam_list') }}" class="btn btn-secondary btn-lg">Hủy bỏ</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

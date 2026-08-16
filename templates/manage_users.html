@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý người dùng - EduCenter{% endblock %}
+{% block page_title %}Danh sách Người dùng{% endblock %}
+
+{% block content %}
+<div x-data="{ 
+  addOpen: false, 
+  role: '{{ 'student' if role_name == 'students' else 'teacher' if role_name == 'teachers' else 'parent' if role_name == 'parents' else 'manager' }}' 
+}">
+
+  <div class="page-header">
+    <div class="page-title-area">
+      <p>Danh bạ thành viên trung tâm</p>
+      <h1>Người dùng & Phân quyền</h1>
+    </div>
+    
+    <div>
+      <button type="button" class="btn btn-primary" @click="addOpen = true">
+        <i data-lucide="user-plus" style="width:14px;height:14px"></i>
+        Thêm tài khoản mới
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <a href="{{ url_for('manage_users', role_name='students') }}" class="tab-link {% if role_name == 'students' %}active{% endif %}">Học sinh</a>
+    <a href="{{ url_for('manage_users', role_name='teachers') }}" class="tab-link {% if role_name == 'teachers' %}active{% endif %}">Giáo viên</a>
+    <a href="{{ url_for('manage_users', role_name='parents') }}" class="tab-link {% if role_name == 'parents' %}active{% endif %}">Phụ huynh</a>
+    <a href="{{ url_for('manage_users', role_name='staff') }}" class="tab-link {% if role_name == 'staff' %}active{% endif %}">Staff / Ban quản trị</a>
+  </div>
+
+  <!-- Users Table listing -->
+  <div class="card" style="padding: 0; overflow: hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Họ và tên</th>
+          <th>Tên đăng nhập</th>
+          <th>Mã người dùng</th>
+          <th>Vai trò</th>
+          <th>Số điện thoại</th>
+          {% if role_name == 'students' %}
+            <th>Lớp học</th>
+          {% elif role_name == 'teachers' %}
+            <th class="text-right">Mức lương / giờ</th>
+          {% elif role_name == 'parents' %}
+            <th>Con liên kết</th>
+          {% else %}
+            <th>Vị trí</th>
+          {% endif %}
+          <th>Trạng thái</th>
+          <th class="text-right">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if users %}
+          {% for user in users %}
+          <tr>
+            <td>
+              <div style="display:flex; align-items:center; gap:var(--space-2)">
+                <img src="{{ url_for('serve_avatar', filename=user.avatar or 'default.jpg') }}" 
+                     style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid var(--border)">
+                <span style="font-weight: 600">{{ user.fullname }}</span>
+              </div>
+            </td>
+            <td>{{ user.username }}</td>
+            <td><span class="badge badge-upcoming">{{ user.user_code }}</span></td>
+            <td>
+              {% if user.role == 'admin' %}
+                <span class="badge badge-absent" style="background:#fef2f2; color:#b91c1c">Admin</span>
+              {% elif user.role == 'manager' %}
+                <span class="badge badge-partial">Quản lý</span>
+              {% elif user.role == 'teacher' %}
+                <span class="badge badge-upcoming">Giáo viên</span>
+              {% elif user.role == 'parent' %}
+                <span class="badge badge-closed">Phụ huynh</span>
+              {% else %}
+                <span class="badge badge-present">Học sinh</span>
+              {% endif %}
+            </td>
+            <td>{{ user.phone or '-' }}</td>
+            
+            {% if role_name == 'students' %}
+              <td>{{ user.position or '-' }}</td>
+            {% elif role_name == 'teachers' %}
+              <td class="text-right money">{{ money(user.salary_rate_per_hour) }}đ/h</td>
+            {% elif role_name == 'parents' %}
+              <td>
+                {% if user.linked_student %}
+                  <span style="font-weight:500">{{ user.linked_student.fullname }}</span>
+                {% else %}
+                  <span style="color:var(--text-3); font-style:italic">Chưa liên kết</span>
+                {% endif %}
+              </td>
+            {% else %}
+              <td>{{ user.position or '-' }}</td>
+            {% endif %}
+            
+            <td>
+              {% if user.is_active %}
+                <span class="badge badge-present">Kích hoạt</span>
+              {% else %}
+                <span class="badge badge-closed">Khóa</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              <div style="display:inline-flex; gap: var(--space-1)">
+                <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-ghost btn-sm">
+                  Chỉnh sửa
+                </a>
+                {% if user.id != current_user.id %}
+                <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display:inline" onsubmit="return confirm('Bạn có chắc muốn xóa vĩnh viễn tài khoản này?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
+                    Xóa
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+              Không tìm thấy tài khoản nào trong danh mục này.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Alpine Modal Overlay for Adding user -->
+  <div x-show="addOpen" x-transition.opacity
+       style="position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100; display:none"
+       @click.self="addOpen = false">
+    
+    <div x-show="addOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                width:480px; max-width:95vw; max-height:90vh; overflow-y:auto; margin-bottom:0"
+         class="card">
+      
+      <div class="card-header">
+        <h3 class="card-title">Thêm người dùng mới</h3>
+        <button type="button" @click="addOpen = false" class="btn btn-ghost btn-icon" style="border:none; background:none">✕</button>
+      </div>
+
+      <form action="{{ url_for('add_user') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <label class="form-label" for="add_role">Vai trò tài khoản *</label>
+          <select id="add_role" name="role" x-model="role" required>
+            <option value="student">Học sinh</option>
+            <option value="teacher">Giáo viên</option>
+            <option value="parent">Phụ huynh</option>
+            <option value="manager">Nhân viên quản lý (Staff)</option>
+            {% if current_user.role == 'admin' %}
+              <option value="admin">Quản trị viên (Admin)</option>
+            {% endif %}
+          </select>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="add_user_code">Mã người dùng *</label>
+            <input type="text" id="add_user_code" name="user_code" placeholder="Ví dụ: HS015, GV003" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add_fullname">Họ và tên *</label>
+            <input type="text" id="add_fullname" name="fullname" placeholder="Nhập họ và tên đầy đủ" required>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="add_username">Tên đăng nhập *</label>
+            <input type="text" id="add_username" name="username" placeholder="Tên dùng để đăng nhập" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add_password">Mật khẩu khởi tạo</label>
+            <input type="text" id="add_password" name="password" placeholder="Mặc định: 123456">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="add_phone">Số điện thoại liên hệ</label>
+          <input type="tel" id="add_phone" name="phone" placeholder="09xx xxx xxx">
+        </div>
+
+        <!-- Role dependent fields -->
+        <div class="form-group" x-show="role === 'student' || role === 'manager' || role === 'admin'">
+          <label class="form-label" for="add_position">Lớp học / Chức danh</label>
+          <input type="text" id="add_position" name="position" placeholder="Ví dụ: Lớp 11A, Quản vụ">
+        </div>
+
+        <div class="form-group" x-show="role === 'teacher'">
+          <label class="form-label" for="add_salary">Mức lương dạy học / giờ (VNĐ)</label>
+          <input type="number" id="add_salary" name="salary_rate_per_hour" placeholder="Mặc định: 0">
+        </div>
+
+        <div class="form-group" x-show="role === 'parent'">
+          <label class="form-label" for="add_linked_student">Liên kết với Học sinh</label>
+          <select id="add_linked_student" name="linked_student_id">
+            <option value="">-- Chọn học sinh để liên kết --</option>
+            {% for student in students %}
+              <option value="{{ student.id }}">{{ student.fullname }} ({{ student.user_code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="margin-top: var(--space-6); display: flex; gap: var(--space-3)">
+          <button type="submit" class="btn btn-primary" style="flex:1">Tạo tài khoản</button>
+          <button type="button" class="btn btn-secondary" @click="addOpen = false" style="flex:1">Hủy bỏ</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

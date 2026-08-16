@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Xếp lịch học - EduCenter{% endblock %}
+{% block page_title %}Quản lý Lịch học{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Quản trị hệ thống thời khóa biểu</p>
+    <h1>Phân lịch học</h1>
+  </div>
+</div>
+
+<!-- Inline Form to create new Schedule -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Xếp lịch học mới</h3>
+  </div>
+  
+  <form action="{{ url_for('schedules') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4); align-items: flex-end">
+      
+      <div class="form-group" style="margin-bottom: 0">
+        <label class="form-label" for="course_id">Khóa học</label>
+        <select id="course_id" name="course_id" required>
+          <option value="">-- Chọn khóa học --</option>
+          {% for course in courses %}
+            <option value="{{ course.id }}">{{ course.course_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0">
+        <label class="form-label" for="teacher_id">Giáo viên dạy</label>
+        <select id="teacher_id" name="teacher_id" required>
+          <option value="">-- Chọn giáo viên --</option>
+          {% for teacher in teachers %}
+            <option value="{{ teacher.id }}">{{ teacher.fullname }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0">
+        <label class="form-label" for="classroom">Phòng học</label>
+        <input type="text" id="classroom" name="classroom" placeholder="Ví dụ: Phòng A1" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0">
+        <label class="form-label" for="weekday">Thứ</label>
+        <select id="weekday" name="weekday" required>
+          <option value="0">Thứ 2</option>
+          <option value="1">Thứ 3</option>
+          <option value="2">Thứ 4</option>
+          <option value="3">Thứ 5</option>
+          <option value="4">Thứ 6</option>
+          <option value="5">Thứ 7</option>
+          <option value="6">Chủ nhật</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0">
+        <label class="form-label" for="start_time">Bắt đầu</label>
+        <input type="time" id="start_time" name="start_time" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0">
+        <label class="form-label" for="end_time">Kết thúc</label>
+        <input type="time" id="end_time" name="end_time" required>
+      </div>
+
+      <div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; height: 38px">
+          Thêm lịch học
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Table showing all schedules -->
+<div class="card" style="padding: 0; overflow: hidden">
+  <div class="card-header" style="padding: var(--space-4) var(--space-6); margin-bottom: 0">
+    <h3 class="card-title">Danh sách lịch dạy học</h3>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Thứ</th>
+        <th>Khóa học</th>
+        <th>Giáo viên</th>
+        <th>Phòng học</th>
+        <th>Khung giờ</th>
+        <th class="text-right">Số giờ học</th>
+        <th class="text-right">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if schedules %}
+        {% for sched in schedules %}
+        <tr>
+          <td style="font-weight: 600">{{ WEEKDAYS[sched.weekday] }}</td>
+          <td>
+            <a href="{{ url_for('course_detail', course_id=sched.course.id) }}" style="font-weight: 500">
+              {{ sched.course.course_name }}
+            </a>
+          </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:var(--space-2)">
+              <img src="{{ url_for('serve_avatar', filename=sched.teacher.avatar or 'default.jpg') }}" 
+                   style="width:24px; height:24px; border-radius:50%; object-fit:cover">
+              <span>{{ sched.teacher.fullname }}</span>
+            </div>
+          </td>
+          <td><span class="badge badge-upcoming">{{ sched.classroom }}</span></td>
+          <td>{{ sched.start_time.strftime('%H:%M') }} - {{ sched.end_time.strftime('%H:%M') }}</td>
+          <td class="text-right money">{{ sched.duration_hours }} giờ</td>
+          <td class="text-right">
+            <div style="display:inline-flex; gap: var(--space-1)">
+              <a href="{{ url_for('edit_schedule', schedule_id=sched.id) }}" class="btn btn-ghost btn-sm" style="color:var(--accent)">
+                Sửa
+              </a>
+              <form action="{{ url_for('delete_schedule', schedule_id=sched.id) }}" method="POST" style="display:inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa lịch học này?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
+                  Xóa
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+            Chưa xếp lịch học nào.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

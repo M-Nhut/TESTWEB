@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Tổng quan - EduCenter{% endblock %}
+
+{% block page_title %}
+  {% if dashboard_scope == 'center' %}
+    Tổng quan trung tâm
+  {% elif dashboard_scope == 'teacher' %}
+    Bảng điều khiển Giáo viên
+  {% else %}
+    Không gian Học tập của {{ student.fullname if student else current_user.fullname }}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Welcome banner card -->
+<div class="welcome-banner">
+  <div class="welcome-profile">
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Center Logo" class="welcome-avatar">
+    <div class="welcome-info">
+      <h2 class="welcome-title">Chào mừng trở lại, {{ current_user.fullname }}!</h2>
+      <p class="welcome-subtitle">
+        {% if current_user.role == 'admin' %}
+          Quản trị viên hệ thống
+        {% elif current_user.role == 'manager' %}
+          Quản lý trung tâm
+        {% elif current_user.role == 'teacher' %}
+          Giáo viên trung tâm
+        {% elif current_user.role == 'student' %}
+          Học sinh
+        {% elif current_user.role == 'parent' %}
+          Phụ huynh học sinh
+        {% else %}
+          {{ ROLE_LABELS.get(current_user.role, current_user.role) }}
+        {% endif %}
+        &bull; Hôm nay là {{ today_date }}
+      </p>
+    </div>
+  </div>
+  {% if current_user.role in ('admin', 'manager') %}
+  <a href="{{ url_for('add_course') }}" class="btn-new-course">
+    <i data-lucide="plus"></i> Khóa học mới
+  </a>
+  {% endif %}
+</div>
+
+{% if dashboard_scope == 'center' %}
+  <!-- KPI cards (Admin / Manager) -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Tổng học sinh</span>
+        <i data-lucide="users" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ total_students }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Tổng giáo viên</span>
+        <i data-lucide="contact" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ total_teachers }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Doanh thu tháng</span>
+        <i data-lucide="coins" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ money(monthly_revenue) }} đ</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Biên lai chưa đóng</span>
+        <i data-lucide="alert-circle" class="stat-icon"></i>
+      </div>
+      <div class="stat-value" style="color: {% if unpaid_tuition_count > 0 %}var(--danger){% else %}inherit{% endif %}">
+        {{ unpaid_tuition_count }}
+      </div>
+    </div>
+  </div>
+
+{% elif dashboard_scope == 'teacher' %}
+  <!-- KPI cards (Teacher) -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Lớp dạy</span>
+        <i data-lucide="graduation-cap" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ teacher_data.assigned_classes }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Học sinh quản lý</span>
+        <i data-lucide="users" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ teacher_data.student_count }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Số buổi dạy tuần này</span>
+        <i data-lucide="calendar" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ teacher_data.sessions_scheduled_this_week }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Thù lao tháng này (dự kiến)</span>
+        <i data-lucide="wallet" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ money(teacher_data.current_month_salary) }} đ</div>
+    </div>
+  </div>
+
+{% else %}
+  <!-- KPI cards (Student / Parent) -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Khóa học đăng ký</span>
+        <i data-lucide="book-open" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ student_data.course_count if student_data else 0 }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Tỷ lệ chuyên cần</span>
+        <i data-lucide="user-check" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ student_data.attendance_rate if student_data else 100 }}%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Bài kiểm tra đã làm</span>
+        <i data-lucide="file-text" class="stat-icon"></i>
+      </div>
+      <div class="stat-value">{{ student_data.exams_taken if student_data else 0 }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">Học phí chưa đóng</span>
+        <i data-lucide="alert-circle" class="stat-icon"></i>
+      </div>
+      <div class="stat-value" style="color:{% if unpaid_tuition > 0 %}var(--danger){% else %}var(--success){% endif %}">
+        {{ money(unpaid_tuition) }} đ
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Main grid: Timetable + Activity feed -->
+<div class="dashboard-layout">
+  
+  <!-- Left Side: Timetable week grid -->
+  <div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="card-header" style="padding:var(--space-4) var(--space-5)">
+        <h3 class="card-title">Thời khóa biểu tuần này</h3>
+        <a href="{{ url_for('my_schedule') }}" class="btn btn-secondary btn-sm">
+          Xem chi tiết
+        </a>
+      </div>
+      {% include 'partials/timetable_grid.html' %}
+    </div>
+  </div>
+
+  <!-- Right Side: Recent Activity -->
+  <div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="card-header" style="padding:var(--space-4) var(--space-5)">
+        <h3 class="card-title">Hoạt động gần đây</h3>
+      </div>
+      <div style="max-height: 520px; overflow-y: auto;">
+        {% if activities %}
+          {% for activity in activities %}
+          <div style="padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--border);display:flex;gap:var(--space-3);align-items:start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px">
+              <i data-lucide="{{ activity.icon }}" style="width:13px;height:13px;color:var(--text-2)"></i>
+            </div>
+            <div style="flex:1; min-width:0">
+              <div style="font-size:var(--text-sm);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {{ activity.title }}
+              </div>
+              <div style="font-size:var(--text-xs);color:var(--text-3);margin-top:2px;line-height:1.4">
+                {{ activity.desc }}
+              </div>
+              {% if activity.time %}
+              <div style="font-size:10px;color:var(--text-3);margin-top:4px">
+                {{ activity.time.strftime('%H:%M %d/%m/%Y') if activity.time.strftime is defined else activity.time }}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="padding: var(--space-6); text-align: center; color: var(--text-3); font-size: var(--text-sm)">
+            Chưa có hoạt động nào được ghi nhận.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

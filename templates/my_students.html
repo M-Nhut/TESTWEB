@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Học sinh của tôi - EduCenter{% endblock %}
+{% block page_title %}Danh sách Học sinh{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Học viên tham gia các lớp học của bạn</p>
+    <h1>Học sinh của tôi</h1>
+  </div>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden">
+  <table style="border: none">
+    <thead>
+      <tr>
+        <th>Học sinh</th>
+        <th>Mã học sinh</th>
+        <th>Lớp / Chức danh</th>
+        <th>Số điện thoại</th>
+        <th>SĐT Phụ huynh</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if students %}
+        {% for student in students %}
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:var(--space-3)">
+              <img src="{{ url_for('serve_avatar', filename=student.avatar or 'default.jpg') }}"
+                   style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:1px solid var(--border)">
+              <div>
+                <div style="font-weight: 600; font-size: var(--text-sm)">{{ student.fullname }}</div>
+                <div style="font-size: var(--text-xs); color: var(--text-3)">{{ student.username }}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="badge badge-upcoming">{{ student.user_code }}</span></td>
+          <td>{{ student.position or 'Chưa cập nhật' }}</td>
+          <td>{{ student.phone or 'Chưa cập nhật' }}</td>
+          <td>{{ student.parent_phone or 'Chưa cập nhật' }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+            Bạn chưa phụ trách giảng dạy học sinh nào hoặc lớp học chưa có ghi danh.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
