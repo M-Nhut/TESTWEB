@@ -77,16 +77,18 @@
         <input type="hidden" name="subject" value="{{ sub }}">
 
         <div class="form-group" style="margin-bottom:var(--space-3)">
-          <label class="form-label" style="font-size:var(--text-xs)">Chọn Ngân hàng câu hỏi</label>
-          <select name="bank_id" style="font-size:var(--text-xs); padding:4px 8px" required>
+          <label class="form-label" style="font-size:var(--text-xs)">Chọn Ngân hàng câu hỏi (Có thể chọn nhiều)</label>
+          <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: var(--radius-sm)">
             {% if banks %}
               {% for b in banks %}
-                <option value="{{ b.id }}">{{ b.name }} ({{ b.question_count }} câu)</option>
+                <label style="display: block; font-size: var(--text-sm); margin-bottom: 4px; cursor: pointer;">
+                  <input type="checkbox" name="bank_ids" value="{{ b.id }}"> {{ b.name }} ({{ b.question_count }} câu)
+                </label>
               {% endfor %}
             {% else %}
-              <option value="">Chưa có ngân hàng câu hỏi</option>
+              <span style="font-size: var(--text-sm); color: var(--text-2);">Chưa có ngân hàng câu hỏi</span>
             {% endif %}
-          </select>
+          </div>
         </div>
 
         <div class="form-group" style="margin-bottom:var(--space-4)">

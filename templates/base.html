@@ -83,6 +83,9 @@
         <a href="{{ url_for('question_bank_list') }}" class="nav-item {% if 'question_bank' in request.endpoint or 'import' in request.endpoint %}active{% endif %}">
           <i data-lucide="database"></i> Ngân hàng câu hỏi
         </a>
+        <a href="{{ url_for('teacher_practice_list') }}" class="nav-item {% if 'teacher_practice' in request.endpoint %}active{% endif %}">
+          <i data-lucide="check-square"></i> Chấm bài tự luyện
+        </a>
         <a href="{{ url_for('teacher_analytics') }}" class="nav-item {% if 'teacher_analytics' in request.endpoint %}active{% endif %}">
           <i data-lucide="bar-chart-3"></i> Báo cáo phân tích
         </a>

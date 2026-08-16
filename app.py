@@ -1700,14 +1700,14 @@ def download_csv_template():
 @login_required
 def exam_list():
     if current_user.role in ("admin", "manager"):
-        exams = Exam.query.order_by(Exam.created_at.desc()).all()
+        exams = Exam.query.filter_by(exam_type="exam").order_by(Exam.created_at.desc()).all()
     elif current_user.role == "teacher":
-        exams = Exam.query.filter_by(created_by=current_user.id).order_by(Exam.created_at.desc()).all()
+        exams = Exam.query.filter_by(created_by=current_user.id, exam_type="exam").order_by(Exam.created_at.desc()).all()
     elif current_user.role in ("student", "parent"):
         student_id = current_user.id if current_user.role == "student" else current_user.linked_student_id
         if student_id:
             course_ids = [e.course_id for e in Enrollment.query.filter_by(student_id=student_id, status="active").all()]
-            exams = Exam.query.filter(Exam.course_id.in_(course_ids), Exam.is_active == True).order_by(Exam.created_at.desc()).all() if course_ids else []
+            exams = Exam.query.filter(Exam.course_id.in_(course_ids), Exam.is_active == True, Exam.exam_type == "exam").order_by(Exam.created_at.desc()).all() if course_ids else []
         else:
             exams = []
     else:
@@ -1858,9 +1858,9 @@ def create_exam():
     return render_template("exam_form.html", exam=None, courses=courses_list, banks=banks_list)
 
 
-def _select_random_bank_questions(bank_id, total_needed, diff_cfg, type_cfg):
-    """Selection algorithm for building random exams from QuestionBank."""
-    all_bqs = BankQuestion.query.filter_by(bank_id=bank_id).all()
+def _select_random_bank_questions(bank_ids, total_needed, diff_cfg, type_cfg):
+    """Selection algorithm for building random exams from QuestionBank(s)."""
+    all_bqs = BankQuestion.query.filter(BankQuestion.bank_id.in_(bank_ids)).all()
     if not all_bqs:
         return []
     if len(all_bqs) <= total_needed:
@@ -2035,11 +2035,12 @@ def take_exam(exam_id):
         flash("Bài kiểm tra chưa mở hoặc đã đóng.", "warning")
         return redirect(url_for("exam_list"))
 
-    # Check existing submission
-    existing = ExamSubmission.query.filter_by(exam_id=exam.id, student_id=current_user.id).first()
-    if existing and existing.is_graded:
-        flash("Bạn đã làm bài kiểm tra này rồi.", "info")
-        return redirect(url_for("exam_result", exam_id=exam.id))
+    # Check existing submission for real exams
+    if exam.exam_type == "exam":
+        existing = ExamSubmission.query.filter_by(exam_id=exam.id, student_id=current_user.id).first()
+        if existing and existing.is_graded:
+            flash("Bạn đã làm bài kiểm tra này rồi.", "info")
+            return redirect(url_for("exam_result", exam_id=exam.id))
 
     questions = list(exam.questions)
     if exam.shuffle_questions:
@@ -2049,20 +2050,29 @@ def take_exam(exam_id):
         for q in questions:
             q._shuffled_answers = list(q.answers)
             random.shuffle(q._shuffled_answers)
-        else:
-            for q in questions:
-                q._shuffled_answers = list(q.answers)
     else:
         for q in questions:
             q._shuffled_answers = list(q.answers)
 
     if request.method == "POST":
-        submission = existing or ExamSubmission(
-            exam_id=exam.id,
-            student_id=current_user.id,
-            started_at=dt.datetime.utcnow(),
-        )
-        if not existing:
+        if exam.exam_type == "exam":
+            submission = ExamSubmission.query.filter_by(exam_id=exam.id, student_id=current_user.id).first()
+            if not submission:
+                submission = ExamSubmission(
+                    exam_id=exam.id,
+                    student_id=current_user.id,
+                    started_at=dt.datetime.utcnow(),
+                    exam_type="exam"
+                )
+                db.session.add(submission)
+                db.session.flush()
+        else:
+            submission = ExamSubmission(
+                exam_id=exam.id,
+                student_id=current_user.id,
+                started_at=dt.datetime.utcnow(),
+                exam_type="practice"
+            )
             db.session.add(submission)
             db.session.flush()
 
@@ -2218,7 +2228,7 @@ def exam_result(exam_id):
     exam = db.session.get(Exam, exam_id) or abort(404)
 
     if current_user.role == "student":
-        submission = ExamSubmission.query.filter_by(exam_id=exam.id, student_id=current_user.id).first()
+        submission = ExamSubmission.query.filter_by(exam_id=exam.id, student_id=current_user.id).order_by(ExamSubmission.started_at.desc()).first()
         if not submission:
             flash("Bạn chưa làm bài kiểm tra này.", "warning")
             return redirect(url_for("exam_list"))
@@ -2320,18 +2330,21 @@ def practice_generate():
         abort(403)
 
     subject = request.form.get("subject", "Toán")
-    bank_id = request.form.get("bank_id")
+    bank_ids_str = request.form.getlist("bank_ids")
     total_q = int(request.form.get("total_questions", 10))
 
-    if not bank_id:
-        bank = QuestionBank.query.filter_by(subject=subject, is_active=True).first()
-        if not bank:
-            flash(f"Chưa có ngân hàng câu hỏi nào cho môn {subject}.", "warning")
-            return redirect(url_for("practice_home"))
-        bank_id = bank.id
+    if not bank_ids_str:
+        flash(f"Vui lòng chọn ít nhất 1 ngân hàng câu hỏi.", "warning")
+        return redirect(url_for("practice_home"))
+
+    bank_ids = [int(bid) for bid in bank_ids_str]
+    first_bank = db.session.get(QuestionBank, bank_ids[0])
+    
+    # Title logic
+    if len(bank_ids) == 1:
+        title = f"Bài Tự Luyện: {first_bank.name}"
     else:
-        bank_id = int(bank_id)
-        bank = db.session.get(QuestionBank, bank_id)
+        title = f"Bài Tự Luyện: Tổng hợp {len(bank_ids)} ngân hàng"
 
     # Get adaptive recommendation
     profile = AdaptiveEngine.analyze_performance(current_user.id, subject)
@@ -2339,18 +2352,20 @@ def practice_generate():
     diff_cfg = recommendation["diff_config"]
     type_cfg = recommendation["type_config"]
 
+    title += f" ({recommendation['level'].upper()})"
+
     # Dummy course for practice exam reference if needed
     enrollment = Enrollment.query.filter_by(student_id=current_user.id, status="active").first()
     course_id = enrollment.course_id if enrollment else 1
 
     # Create Practice Exam
     exam = Exam(
-        title=f"Bài Tự Luyện: {bank.name} ({recommendation['level'].upper()})",
+        title=title,
         course_id=course_id,
         created_by=current_user.id,
         duration_minutes=int(total_q * 1.5),
         exam_type="practice",
-        question_bank_id=bank.id,
+        question_bank_id=bank_ids[0],  # just pick the first one for reference if needed
         total_questions=total_q,
         difficulty_config=json.dumps(diff_cfg),
         question_type_config=json.dumps(type_cfg),
@@ -2359,7 +2374,7 @@ def practice_generate():
     db.session.add(exam)
     db.session.flush()
 
-    selected_bqs = _select_random_bank_questions(bank.id, total_q, diff_cfg, type_cfg)
+    selected_bqs = _select_random_bank_questions(bank_ids, total_q, diff_cfg, type_cfg)
 
     for idx, bq in enumerate(selected_bqs):
         eq = ExamQuestion(

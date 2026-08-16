@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Chấm Bài Tự Luyện - EduCenter{% endblock %}
+{% block page_title %}Danh sách học sinh có bài tự luyện{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Quản lý và chấm điểm các bài tự luyện của học sinh</p>
+    <h1>Chấm bài tự luyện</h1>
+  </div>
+</div>
+
+<div class="card" style="margin-top: var(--space-4)">
+  <div style="overflow-x: auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Học sinh</th>
+          <th>Tổng số bài tự luyện</th>
+          <th>Chưa chấm</th>
+          <th>Hoạt động gần nhất</th>
+          <th class="text-right">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for info in students %}
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: var(--space-3)">
+              <img src="{{ url_for('serve_avatar', filename=info.student.avatar or 'default.jpg') }}" alt="" class="avatar-sm">
+              <div>
+                <div style="font-weight: 600">{{ info.student.fullname }}</div>
+                <div style="font-size: var(--text-xs); color: var(--text-2)">{{ info.student.username }}</div>
+              </div>
+            </div>
+          </td>
+          <td>{{ info.total_practice }}</td>
+          <td>
+            {% if info.ungraded_count > 0 %}
+              <span class="badge badge-partial">{{ info.ungraded_count }} bài</span>
+            {% else %}
+              <span style="color: var(--text-2)">Không có</span>
+            {% endif %}
+          </td>
+          <td>{{ info.latest_activity.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="text-right">
+            <a href="{{ url_for('teacher_practice_detail', student_id=info.student.id) }}" class="btn btn-outline btn-sm">
+              Xem chi tiết
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center" style="padding: var(--space-6) 0; color: var(--text-2)">
+            Chưa có học sinh nào nộp bài tự luyện.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

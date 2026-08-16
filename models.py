@@ -461,7 +461,7 @@ class ExamSubmission(db.Model):
             return 0
         return round(self.total_score / self.max_score * 100, 1)
 
-    __table_args__ = (db.UniqueConstraint("exam_id", "student_id", name="uq_exam_student"),)
+
 
 
 class SubmissionAnswer(db.Model):

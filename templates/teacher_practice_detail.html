@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Chi Tiết Chấm Tự Luyện - EduCenter{% endblock %}
+{% block page_title %}Danh sách bài tự luyện của {{ student.fullname }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-area">
+    <p>Chi tiết các lần tự luyện của học sinh</p>
+    <h1>Học sinh: {{ student.fullname }}</h1>
+  </div>
+  <div>
+    <a href="{{ url_for('teacher_practice_list') }}" class="btn btn-outline">
+      <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Quay lại
+    </a>
+  </div>
+</div>
+
+<div class="card" style="margin-top: var(--space-4)">
+  <div style="overflow-x: auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Thời gian nộp</th>
+          <th>Đề thi</th>
+          <th>Điểm số</th>
+          <th>Trạng thái</th>
+          <th class="text-right">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sub in submissions %}
+        <tr>
+          <td>{{ sub.submitted_at.strftime('%d/%m/%Y %H:%M') if sub.submitted_at else 'Đang làm' }}</td>
+          <td>
+            <div style="font-weight: 500">{{ sub.exam.title }}</div>
+            <div style="font-size: var(--text-xs); color: var(--text-2)">{{ sub.exam.total_questions }} câu</div>
+          </td>
+          <td>
+            {% if sub.submitted_at %}
+              <span style="font-weight: 600; color: var(--accent)">{{ sub.total_score }}/{{ sub.max_score }}</span>
+            {% else %}
+              <span style="color: var(--text-2)">---</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not sub.submitted_at %}
+              <span class="badge" style="background:var(--surface-3); color:var(--text-2)">Chưa nộp</span>
+            {% elif sub.is_graded %}
+              <span class="badge badge-present">Đã chấm điểm</span>
+            {% else %}
+              <span class="badge badge-partial">Đang chờ chấm</span>
+            {% endif %}
+          </td>
+          <td class="text-right">
+            {% if sub.submitted_at %}
+              <a href="{{ url_for('grade_submission', submission_id=sub.id) }}" class="btn btn-primary btn-sm">
+                {% if sub.is_graded %}Xem điểm{% else %}Chấm bài{% endif %}
+              </a>
+            {% else %}
+              <button class="btn btn-outline btn-sm" disabled>Đang làm</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center" style="padding: var(--space-6) 0; color: var(--text-2)">
+            Học sinh này chưa nộp bài tự luyện nào.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
