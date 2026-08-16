@@ -2234,6 +2234,56 @@ def exam_result(exam_id):
     return render_template("exam_result.html", exam=exam, submissions=submissions, single_view=False)
 
 
+@app.route("/submissions/<int:submission_id>/grade", methods=["GET", "POST"])
+@login_required
+@teacher_manager_admin_required
+def grade_submission(submission_id):
+    submission = db.session.get(ExamSubmission, submission_id) or abort(404)
+    exam = submission.exam
+    
+    if current_user.role == "teacher" and exam.created_by != current_user.id:
+        abort(403)
+
+    if request.method == "POST":
+        total_score = 0.0
+        
+        for q in exam.questions:
+            # Check if this question's grade was submitted
+            grade_key = f"grade_q_{q.id}"
+            if grade_key in request.form:
+                try:
+                    points = float(request.form[grade_key])
+                    # Ensure points don't exceed max question points
+                    points = max(0.0, min(points, q.points))
+                except ValueError:
+                    points = 0.0
+                
+                # Update SubmissionAnswer
+                sa = SubmissionAnswer.query.filter_by(submission_id=submission.id, question_id=q.id).first()
+                if not sa:
+                    sa = SubmissionAnswer(
+                        submission_id=submission.id,
+                        question_id=q.id,
+                        selected_answer_ids="[]",
+                        is_correct=False,
+                        points_earned=points
+                    )
+                    db.session.add(sa)
+                else:
+                    sa.points_earned = points
+                
+                total_score += points
+
+        submission.total_score = total_score
+        submission.is_graded = True
+        db.session.commit()
+        
+        flash(f"Đã lưu điểm cho học sinh {submission.student.fullname}.", "success")
+        return redirect(url_for("exam_result", exam_id=exam.id))
+
+    return render_template("grade_submission.html", exam=exam, submission=submission)
+
+
 # ──────────────────────── ADAPTIVE PRACTICE & ANALYTICS ────────────────────────
 
 @app.route("/practice")

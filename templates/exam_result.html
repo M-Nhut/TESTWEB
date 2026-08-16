@@ -223,6 +223,7 @@
           <th class="text-right">Điểm số đạt được</th>
           <th class="text-right">Tỷ lệ đúng</th>
           <th>Trạng thái</th>
+          <th class="text-right">Hành động</th>
         </tr>
       </thead>
       <tbody>
@@ -250,11 +251,16 @@
                 <span class="badge badge-partial">Đang chờ chấm</span>
               {% endif %}
             </td>
+            <td class="text-right">
+              <a href="{{ url_for('grade_submission', submission_id=sub.id) }}" class="btn btn-primary btn-sm">
+                {% if sub.is_graded %}Xem / Sửa điểm{% else %}Chấm bài{% endif %}
+              </a>
+            </td>
           </tr>
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="6" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
+            <td colspan="7" style="text-align: center; color: var(--text-3); padding: var(--space-8)">
               Chưa có học sinh nào nộp bài kiểm tra này.
             </td>
           </tr>
