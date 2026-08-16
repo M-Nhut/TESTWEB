@@ -2192,9 +2192,11 @@ def take_exam(exam_id):
                 )
                 db.session.add(sa)
 
+        has_manual_grading = any(q.question_type in ("short_answer", "essay", "tu_luan") for q in exam.questions)
+
         submission.total_score = total_score
         submission.max_score = max_score
-        submission.is_graded = True
+        submission.is_graded = not has_manual_grading
         submission.submitted_at = dt.datetime.utcnow()
         db.session.commit()
 
