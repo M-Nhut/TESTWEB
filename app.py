@@ -34,8 +34,11 @@ from helpers import (
 )
 
 
+from whitenoise import WhiteNoise
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(basedir, 'static'), prefix='static/')
 app.config["SECRET_KEY"] = "khoa-bi-mat-sieu-cap-vipro-123456"
 
 # Check if running on Vercel
