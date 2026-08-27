@@ -8,12 +8,5 @@
       "source": "/(.*)",
       "destination": "/api/index"
     }
-<<<<<<< HEAD
-  ],
-  "functions": {
-   "api/index.py": {}
-  }
-=======
   ]
->>>>>>> 1fdee7f (Fix empty Vercel functions config)
 }
