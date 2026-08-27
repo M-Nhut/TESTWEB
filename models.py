@@ -538,3 +538,38 @@ class StudentPerformance(db.Model):
             return json.loads(self.strong_topics or "[]")
         except (json.JSONDecodeError, TypeError):
             return []
+
+
+# ──────────────────────── FORMULA ASSETS ────────────────────────
+
+class FormulaAsset(db.Model):
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    mtef_data = db.Column(db.Text, nullable=True)  # zlib-compressed base64 MTEF
+    mathml = db.Column(db.Text, nullable=True)
+    latex = db.Column(db.Text, nullable=True)
+    source_format = db.Column(db.String(20), nullable=True)  # OMML, MathType, LaTeX, PDF
+    converter_name = db.Column(db.String(100), nullable=True)
+    converter_version = db.Column(db.String(50), nullable=True)
+    content_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)  # SHA-256
+    parse_confidence = db.Column(db.Float, default=1.0)
+    conversion_status = db.Column(db.String(20), default="pending")  # pending, converted, fallback_svg, failed
+    verification_status = db.Column(db.String(20), default="verified")  # verified, needs_review, failed
+    svg_cache_key = db.Column(db.String(100), nullable=True)  # filesystem/object storage key, no SVG binary in DB
+    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def to_api_dict(self):
+        """Return dict safe for API responses (no MTEF binary data)."""
+        return {
+            "id": self.id,
+            "mathml": self.mathml,
+            "latex": self.latex,
+            "source_format": self.source_format,
+            "conversion_status": self.conversion_status,
+            "verification_status": self.verification_status,
+            "svg_cache_key": self.svg_cache_key,
+        }
+

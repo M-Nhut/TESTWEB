@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-title-area">
-    <p>Hỗ trợ PDF (tự bóc tách câu hỏi, hình ảnh, công thức, Đúng/Sai THPT), DOCX, CSV</p>
+    <p>Hỗ trợ PDF (tự bóc tách câu hỏi, hình ảnh, công thức, Đúng/Sai THPT), DOCX, LaTeX (.tex)</p>
     <h1>Import Ngân hàng câu hỏi</h1>
   </div>
   <div>
@@ -51,9 +51,9 @@
       
       <i data-lucide="upload-cloud" style="width:48px; height:48px; color:var(--accent); margin-bottom:var(--space-3)"></i>
       <h3 style="margin-bottom:var(--space-2)">Kéo thả file tài liệu vào đây hoặc nhấn để chọn file</h3>
-      <p style="font-size:var(--text-sm); color:var(--text-2); margin-bottom:var(--space-4)">Định dạng hỗ trợ: <strong>DOCX, Aiken (.aiken), GIFT (.gift), PDF, CSV, TXT</strong> (Tối đa: 10MB)</p>
+      <p style="font-size:var(--text-sm); color:var(--text-2); margin-bottom:var(--space-4)">Định dạng hỗ trợ: <strong>DOCX, PDF, LaTeX (.tex, .latex)</strong> (Tối đa: 10MB)</p>
       
-      <input type="file" x-ref="fileInput" @change="handleFileSelect($event)" accept=".csv,.docx,.pdf,.aiken,.gift,.txt" style="display:none">
+      <input type="file" x-ref="fileInput" @change="handleFileSelect($event)" accept=".docx,.pdf,.tex,.latex" style="display:none">
       <button type="button" class="btn btn-primary" style="border-radius:9999px">Chọn file từ máy tính</button>
     </div>
 
@@ -66,9 +66,6 @@
       <div style="display:flex; gap:var(--space-3)">
         <a href="{{ url_for('download_docx_template') }}" class="btn btn-secondary btn-sm" style="border-radius:9999px">
           <i data-lucide="file-text" style="width:14px;height:14px"></i> Template DOCX (5 loại câu)
-        </a>
-        <a href="{{ url_for('download_csv_template') }}" class="btn btn-secondary btn-sm" style="border-radius:9999px">
-          <i data-lucide="table" style="width:14px;height:14px"></i> Template CSV
         </a>
       </div>
     </div>
@@ -170,7 +167,7 @@
             <!-- Context Block (if present) -->
             <template x-if="q.context">
               <div style="font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3); border-radius:14px; margin-bottom:var(--space-3); border-left:4px solid var(--accent)">
-                <strong>📖 Context / Đoạn văn:</strong> <span class="katex-render" x-html="formatRichText(q.context)"></span>
+                <strong>📖 Context / Đoạn văn:</strong> <span class="katex-render" style="white-space:pre-wrap;" x-text="q.context" x-effect="q.context; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></span>
               </div>
             </template>
 
@@ -182,7 +179,7 @@
             </template>
 
             <!-- Question Text -->
-            <div class="katex-render" style="font-weight:500; font-size:var(--text-md); margin-bottom:var(--space-3); line-height:1.6" x-html="formatRichText(q.question_text)"></div>
+            <div class="katex-render" style="font-weight:500; font-size:var(--text-md); margin-bottom:var(--space-3); line-height:1.6; white-space:pre-wrap;" x-text="q.question_text" x-effect="q.question_text; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></div>
 
             <!-- SINGLE CHOICE OPTIONS (Interactive Click ONLY on Button Badge) -->
             <template x-if="q.question_type === 'single' && q.options && q.options.length > 0">
@@ -192,7 +189,7 @@
                        :style="opt.is_correct ? 'border:2px solid var(--success); background:var(--success-light); font-weight:600' : 'border:1.5px solid var(--border); background:var(--surface)'">
                     <div style="flex:1; padding-right:8px">
                       <span style="font-weight:700; color:var(--text-2); margin-right:6px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
-                      <span class="katex-render" x-html="formatRichText(opt.text)"></span>
+                      <span class="katex-render" style="white-space:pre-wrap;" x-text="opt.text" x-effect="opt.text; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></span>
                     </div>
                     <div>
                       <!-- Clickable Button/Badge for setting correct answer -->
@@ -217,7 +214,7 @@
                        :style="opt.is_correct ? 'border:2px solid var(--success); background:var(--success-light); font-weight:600' : 'border:1.5px solid var(--border); background:var(--surface)'">
                     <div style="flex:1; padding-right:8px">
                       <span style="font-weight:700; color:var(--text-2); margin-right:6px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
-                      <span class="katex-render" x-html="formatRichText(opt.text)"></span>
+                      <span class="katex-render" style="white-space:pre-wrap;" x-text="opt.text" x-effect="opt.text; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></span>
                     </div>
                     <div>
                       <!-- Clickable Button/Badge for toggling correct answer -->
@@ -241,7 +238,7 @@
                   <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; border:1.5px solid var(--border); border-radius:9999px; font-size:var(--text-sm); background:var(--surface)">
                     <div style="flex:1; padding-right:var(--space-3)">
                       <strong style="color:var(--accent)" x-text="stmt.id + ')'"></strong>
-                      <span class="katex-render" x-html="formatRichText(stmt.text)"></span>
+                      <span class="katex-render" style="white-space:pre-wrap;" x-text="stmt.text" x-effect="stmt.text; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></span>
                     </div>
                     <div style="display:flex; gap:6px; align-items:center">
                       <button type="button" class="btn btn-sm"
@@ -266,7 +263,7 @@
             <template x-if="q.question_type === 'short_answer'">
               <div style="margin-bottom:var(--space-3); font-size:var(--text-sm); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:9999px">
                 <strong>Đáp án mẫu:</strong>
-                <span x-html="q.options && q.options.length > 0 ? q.options.map(o => formatRichText(o.text)).join(' | ') : 'Chưa có đáp án mẫu'"></span>
+                <span style="white-space:pre-wrap;" x-text="q.options && q.options.length > 0 ? q.options.map(o => o.text).join(' | ') : 'Chưa có đáp án mẫu'" x-effect="q.options; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></span>
               </div>
             </template>
 
@@ -280,7 +277,7 @@
             <!-- Explanation Display -->
             <template x-if="q.explanation">
               <div style="font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:20px; margin-top:var(--space-2)">
-                💡 <strong>Giải thích:</strong> <div class="katex-render" style="white-space:pre-line; display:inline-block;" x-html="formatRichText(q.explanation)"></div>
+                💡 <strong>Giải thích:</strong> <div class="katex-render" style="white-space:pre-wrap; display:inline-block;" x-text="q.explanation" x-effect="q.explanation; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el, q.formulas || {}); })"></div>
               </div>
             </template>
 
@@ -300,6 +297,11 @@
                 </template>
               </div>
             </template>
+
+            <!-- MathType conversion is automatic. The inline SVG preview is
+                 shown immediately; structured MathML/LaTeX may replace it
+                 later when a conversion worker is configured. -->
+
           </div>
 
           <!-- ================= MODE 2: INLINE EDIT MODE (IN-PLACE CARD EDITOR) ================= -->
@@ -589,7 +591,7 @@ function importWizard() {
         }
       })
       .catch(err => {
-        alert('Có lỗi xảy ra khi đọc file PDF.');
+        alert('Có lỗi xảy ra khi đọc file. Vui lòng kiểm tra định dạng DOCX và thử lại.');
         this.step = 1;
       });
     },
@@ -670,6 +672,11 @@ function importWizard() {
 
     syncQuestionUpdate(idx) {
       const q = this.questions[idx];
+      this.updateQuestionInServer(idx, q);
+    },
+
+    updateQuestionInServer(idx, q = null) {
+      if (!q) q = this.questions[idx];
       fetch(`/question-banks/import/${this.sessionId}/update`, {
         method: 'POST',
         headers: { 
@@ -691,6 +698,14 @@ function importWizard() {
           });
         }
       });
+    },
+
+    renderTempFormulaPreview(latexStr) {
+      if (!latexStr) return '<span style="color:var(--text-3); font-style:italic">Chưa có gợi ý</span>';
+      
+      // Let formula_renderer catch it or we wrap it in mathjax
+      // For immediate preview, we can just return wrapped LaTeX string
+      return '<span class="katex-render">$$' + latexStr + '$$</span>';
     },
 
     saveInlineEdit() {

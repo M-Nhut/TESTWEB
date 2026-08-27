@@ -208,6 +208,7 @@ def normalize_question(raw_question, index=0):
         "has_image": bool(raw_question.get("has_image", False) or raw_question.get("image_url")),
         "image_paths": raw_question.get("image_paths", []),
         "source_line": raw_question.get("source_line", 0),
+        "formulas": raw_question.get("formulas", {}),
     }
 
     # Normalize difficulty

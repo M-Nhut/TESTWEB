@@ -9,5 +9,8 @@ pillow==12.2.0
 psycopg2-binary
 PyMuPDF
 python-docx
+olefile
 gunicorn
 whitenoise
+requests
+python-dotenv

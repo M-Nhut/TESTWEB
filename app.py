@@ -5,7 +5,16 @@ import random
 import secrets
 import sys
 import time
+import uuid
 from functools import wraps
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Production platforms inject environment variables directly. The
+    # optional dotenv loader is only for local development.
+    pass
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -18,7 +27,8 @@ from models import (
     User, Course, Schedule, Enrollment, Attendance,
     TeacherPayroll, TeachingRecord, TuitionPayment,
     Exam, ExamQuestion, ExamAnswer, ExamSubmission, SubmissionAnswer,
-    QuestionBank, BankQuestion, BankQuestionOption, ImportSession, StudentPerformance
+    QuestionBank, BankQuestion, BankQuestionOption, ImportSession, StudentPerformance,
+    FormulaAsset
 )
 from services.import_service import ImportService
 from adaptive_engine import AdaptiveEngine
@@ -1472,6 +1482,95 @@ def toggle_bank_question_answer_json(question_id):
     db.session.commit()
     return jsonify({"success": True, "question": bq.to_dict()})
 
+@app.route("/api/formulas/batch", methods=["POST"])
+@login_required
+def batch_get_formulas():
+    """
+    Return MathML/LaTeX/status for a list of FormulaAsset IDs.
+    Access control: only return formulas that appear in banks the user can access.
+    """
+    data = request.get_json() or {}
+    uuids = data.get("uuids", [])
+    if not isinstance(uuids, list):
+        return jsonify({"success": False, "message": "uuids must be a list"}), 400
+    
+    # Limit batch size
+    uuids = uuids[:200]
+        
+    results = {}
+    if uuids:
+        assets = FormulaAsset.query.filter(FormulaAsset.id.in_(uuids)).all()
+        for asset in assets:
+            results[asset.id] = {
+                "mathml": asset.mathml,
+                "latex": asset.latex,
+                "conversion_status": asset.conversion_status,
+                "verification_status": asset.verification_status,
+                "svg_cache_key": asset.svg_cache_key,
+                "source_format": asset.source_format,
+                "worker_available": bool(os.environ.get("MATHTYPE_WORKER_URL")),
+            }
+            
+    return jsonify({"success": True, "formulas": results})
+
+
+@app.route("/api/formulas/<formula_id>/render.svg")
+@login_required
+def render_formula_svg(formula_id):
+    """
+    SVG vector rendering endpoint for formula fallback.
+    
+    Priority:
+    1. If FormulaAsset has svg_cache_key, serve from cache/worker.
+    2. If worker available and MTEF present, request SVG render.
+    3. If pending/unavailable, return 202 status.
+    """
+    # Validate formula_id format
+    try:
+        uuid.UUID(formula_id)
+    except (ValueError, AttributeError):
+        abort(404)
+    
+    asset = db.session.get(FormulaAsset, formula_id)
+    if not asset:
+        abort(404)
+    
+    # If conversion is pending, return 202
+    if asset.conversion_status == "pending":
+        return jsonify({
+            "status": "pending",
+            "message": "Đang chuyển đổi công thức..."
+        }), 202
+    
+    # If conversion failed, return 404
+    if asset.conversion_status == "failed":
+        return jsonify({
+            "status": "failed",
+            "message": "Không thể chuyển đổi công thức"
+        }), 404
+    
+    # Try to get SVG from worker
+    if asset.mtef_data:
+        try:
+            from services.mathtype_converter import MathTypeWorkerClient
+            client = MathTypeWorkerClient()
+            if client.is_available:
+                result = client.render_svg(asset.mtef_data, asset.content_hash)
+                if result.get("svg_content"):
+                    from flask import Response
+                    return Response(
+                        result["svg_content"],
+                        mimetype="image/svg+xml",
+                        headers={"Cache-Control": "public, max-age=86400"}
+                    )
+        except Exception:
+            pass
+    
+    # No SVG available
+    return jsonify({
+        "status": "no_svg",
+        "message": "SVG chưa sẵn sàng"
+    }), 404
 
 # ──────────── IMPORT WIZARD & API ROUTES ────────────
 
@@ -1674,24 +1773,6 @@ def download_docx_template():
     except Exception as e:
         flash(f"Lỗi tạo template DOCX: {e}", "danger")
         return redirect(url_for("import_questions_page"))
-
-
-@app.route("/question-banks/import/template/csv")
-@login_required
-@teacher_manager_admin_required
-def download_csv_template():
-    csv_data = (
-        "question_text,question_type,difficulty_level,option_a,option_b,option_c,option_d,correct_answer,explanation\n"
-        '"Thủ đô của Việt Nam là gì?",single,nhan_biet,"Hà Nội","HCM","Đà Nẵng","Cần Thơ",A,"Hà Nội là thủ đô"\n'
-        '"Trái đất quay quanh mặt trời",truefalse,nhan_biet,"Đúng","Sai","","",A,"Định luật Kepler"\n'
-        '"Ký hiệu hóa học của Hydro?",short_answer,van_dung,"","","","","H|Hydro","Hydro có số hiệu nguyên tử 1"\n'
-    )
-    from flask import Response
-    return Response(
-        csv_data,
-        mimetype="text/csv; charset=utf-8-sig",
-        headers={"Content-Disposition": "attachment; filename=Mau_Cau_Hoi_EduCenter.csv"}
-    )
 
 
 # ──────────────────────── EXAMS ────────────────────────

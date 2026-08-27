@@ -120,6 +120,14 @@ def validate_question(question, existing_texts=None):
                     warnings.append("Có thể trùng với câu hỏi đã tồn tại trong ngân hàng")
                     break
 
+    # Formula warnings
+    if question.get("pdf_math_warning"):
+        warnings.append("PDF không chứa dữ liệu công thức gốc; không đảm bảo chính xác. Cần kiểm tra lại các biểu thức toán học.")
+        
+    formulas = question.get("formulas", {})
+    if any(not f.get("mathml") for f in formulas.values()):
+        warnings.append("Có công thức phức tạp hoặc bị lỗi cấu trúc, cần giáo viên xem xét lại.")
+
     # 9. Points validation
     points = question.get("points", 1.0)
     if points <= 0:

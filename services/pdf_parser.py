@@ -271,6 +271,8 @@ def _parse_pdf_document_structure(lines_with_page, extracted_images):
                 "raw_correct": "",
                 "image_url": "",
                 "page": page,
+                "formulas": {},
+                "pdf_math_warning": False,
                 "confidence_scores": {
                     "question": q_confidence,
                     "type": 0.90,
@@ -278,6 +280,10 @@ def _parse_pdf_document_structure(lines_with_page, extracted_images):
                     "answer": 0.50
                 }
             }
+
+            math_symbols = set("∫∑∏√∞≠≈≤≥±∓∈∉⊂⊆∪∩")
+            if any(sym in q_text for sym in math_symbols) or re.search(r'[A-Za-z]\s*[=\+\-\*/]\s*\d', q_text):
+                current_q["pdf_math_warning"] = True
 
             matching_imgs = [img for img in extracted_images if img["page"] == page]
             if matching_imgs:
@@ -394,6 +400,12 @@ def _parse_pdf_document_structure(lines_with_page, extracted_images):
         q["question_text"] = _normalize_latex_math(q["question_text"])
         if q.get("context"):
             q["context"] = _normalize_latex_math(q["context"])
+            
+        # PDF math warning heuristic
+        math_symbols = set("∫∑∏√∞≠≈≤≥±∓∈∉⊂⊆∪∩")
+        full_text = q["question_text"] + " " + q.get("explanation", "") + " ".join([o["text"] for o in q.get("options", [])])
+        if any(sym in full_text for sym in math_symbols) or re.search(r'[A-Za-z]\s*[=\+\-\*/]\s*\d', full_text):
+            q["pdf_math_warning"] = True
 
     return raw_questions
 

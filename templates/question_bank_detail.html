@@ -121,7 +121,7 @@
             <!-- Context Block (if present) -->
             <template x-if="q.context">
               <div style="font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3); border-radius:14px; margin-bottom:var(--space-3); border-left:4px solid var(--accent)">
-                <strong>📖 Context / Đoạn văn:</strong> <span class="katex-render" x-html="formatRichText(q.context)"></span>
+                <strong>📖 Context / Đoạn văn:</strong> <span class="katex-render" style="white-space:pre-wrap;" x-text="q.context" x-effect="q.context; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></span>
               </div>
             </template>
 
@@ -133,7 +133,7 @@
             </template>
 
             <!-- Question Text -->
-            <div class="katex-render" style="font-weight:500; font-size:var(--text-md); margin-bottom:var(--space-3); line-height:1.6" x-html="formatRichText(q.question_text)"></div>
+            <div class="katex-render" style="font-weight:500; font-size:var(--text-md); margin-bottom:var(--space-3); line-height:1.6; white-space:pre-wrap;" x-text="q.question_text" x-effect="q.question_text; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></div>
 
             <!-- SINGLE CHOICE OPTIONS (Interactive Click ONLY on Button Badge) -->
             <template x-if="q.question_type === 'single' && q.options && q.options.length > 0">
@@ -143,7 +143,7 @@
                        :style="opt.is_correct ? 'border:2px solid var(--success); background:var(--success-light); font-weight:600' : 'border:1px solid var(--border); background:var(--surface)'">
                     <div style="flex:1; padding-right:8px">
                       <span style="font-weight:700; color:var(--text-2); margin-right:6px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
-                      <span class="katex-render" x-html="formatRichText(opt.option_text || opt.text)"></span>
+                      <span class="katex-render" style="white-space:pre-wrap;" x-text="opt.option_text || opt.text" x-effect="(opt.option_text || opt.text); $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></span>
                     </div>
                     <div>
                       <button type="button" class="btn btn-sm"
@@ -167,7 +167,7 @@
                        :style="opt.is_correct ? 'border:2px solid var(--success); background:var(--success-light); font-weight:600' : 'border:1px solid var(--border); background:var(--surface)'">
                     <div style="flex:1; padding-right:8px">
                       <span style="font-weight:700; color:var(--text-2); margin-right:6px" x-text="String.fromCharCode(65 + oidx) + '.'"></span>
-                      <span class="katex-render" x-html="formatRichText(opt.option_text || opt.text)"></span>
+                      <span class="katex-render" style="white-space:pre-wrap;" x-text="opt.option_text || opt.text" x-effect="(opt.option_text || opt.text); $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></span>
                     </div>
                     <div>
                       <button type="button" class="btn btn-sm"
@@ -189,7 +189,7 @@
                 <template x-for="(stmt, sidx) in q.options" :key="stmt.id || sidx">
                   <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; border:1.5px solid var(--border); border-radius:9999px; font-size:var(--text-sm); background:var(--surface)">
                     <div style="flex:1; padding-right:var(--space-3)">
-                      <span class="katex-render" x-html="formatRichText(stmt.option_text || stmt.text)"></span>
+                      <span class="katex-render" style="white-space:pre-wrap;" x-text="stmt.option_text || stmt.text" x-effect="(stmt.option_text || stmt.text); $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></span>
                     </div>
                     <div style="display:flex; gap:6px; align-items:center">
                       <button type="button" class="btn btn-sm"
@@ -214,7 +214,7 @@
             <template x-if="q.question_type === 'short_answer'">
               <div style="margin-bottom:var(--space-3); font-size:var(--text-sm); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:9999px">
                 <strong>Đáp án mẫu:</strong>
-                <span x-html="q.options && q.options.length > 0 ? q.options.map(o => formatRichText(o.option_text || o.text)).join(' | ') : 'Chưa có đáp án mẫu'"></span>
+                <span style="white-space:pre-wrap;" x-text="q.options && q.options.length > 0 ? q.options.map(o => (o.option_text || o.text)).join(' | ') : 'Chưa có đáp án mẫu'" x-effect="q.options; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></span>
               </div>
             </template>
 
@@ -228,7 +228,7 @@
             <!-- Explanation Display -->
             <template x-if="q.explanation">
               <div style="font-size:var(--text-xs); color:var(--text-2); background:var(--surface-2); padding:var(--space-3) var(--space-4); border-radius:20px; margin-top:var(--space-2)">
-                💡 <strong>Giải thích:</strong> <div class="katex-render" style="white-space:pre-line; display:inline-block;" x-html="formatRichText(q.explanation)"></div>
+                💡 <strong>Giải thích:</strong> <div class="katex-render" style="white-space:pre-wrap; display:inline-block;" x-text="q.explanation" x-effect="q.explanation; $nextTick(() => { if(window.renderFormulas) window.renderFormulas($el); })"></div>
               </div>
             </template>
           </div>

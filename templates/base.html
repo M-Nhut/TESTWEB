@@ -10,9 +10,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-  <!-- KaTeX Math Rendering -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <!-- MathJax Configuration -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+      },
+      startup: {
+        typeset: false // We will trigger typesetting manually when needed
+      }
+    };
+  </script>
   {% block head %}{% endblock %}
 </head>
 
@@ -182,31 +197,22 @@
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.0/dist/cdn.min.js" defer></script>
   <script src="https://unpkg.com/htmx.org@2.0.0/dist/htmx.min.js"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <!-- KaTeX Math JS -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-          onload="window.renderKaTeX()"></script>
+  <!-- MathJax 3 JS -->
+  <script id="MathJax-script" defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="{{ url_for('static', filename='js/formula_renderer.js') }}" defer></script>
   <script>
-    window.renderKaTeX = function(el) {
-      if (typeof renderMathInElement === 'function') {
-        renderMathInElement(el || document.body, {
-          delimiters: [
-            {left: '$$', right: '$$', display: true},
-            {left: '$', right: '$', display: false},
-            {left: '\\(', right: '\\)', display: false},
-            {left: '\\[', right: '\\]', display: true}
-          ],
-          throwOnError: false
-        });
-      }
-    };
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
-      setTimeout(() => window.renderKaTeX(), 200);
+      // Render standard LaTeX and custom formula placeholders
+      if (window.renderFormulas) {
+        window.renderFormulas(document.body);
+      }
     });
-    document.body.addEventListener('htmx:afterOnLoad', () => {
+    document.body.addEventListener('htmx:afterOnLoad', (event) => {
       lucide.createIcons();
-      setTimeout(() => window.renderKaTeX(), 200);
+      if (window.renderFormulas) {
+        window.renderFormulas(event.detail.elt);
+      }
     });
   </script>
   {% block scripts %}{% endblock %}

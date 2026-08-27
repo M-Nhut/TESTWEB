@@ -1,21 +1,27 @@
 """
 Import Service — Orchestrates the lifecycle of an ImportSession.
 Handles upload, parsing, preview, updating, confirmation, cancellation, and temp file cleanup.
+
+MathType production pipeline:
+  - After parser extracts MTEF, create/get FormulaAsset by content_hash (deduplicate).
+  - If embedded MathML/LaTeX metadata exists → save immediately, mark converted.
+  - If no metadata → create FormulaAsset as pending, queue worker job after confirm.
+  - Never block import for conversion; questions import with pending assets.
+  - Remap temp UUIDs to FormulaAsset.id in question_text, context, options, statements, explanation.
 """
 
+import hashlib
 import os
 import json
+import re
 import uuid
 import datetime as dt
 from database import db
-from models import ImportSession, QuestionBank, BankQuestion, BankQuestionOption
+from models import ImportSession, QuestionBank, BankQuestion, BankQuestionOption, FormulaAsset
 from services.question_normalizer import normalize_questions
 from services.question_validator import validate_questions
-from services.csv_parser import parse_csv
 from services.docx_parser import parse_docx
 from services.pdf_parser import parse_pdf
-from services.aiken_parser import parse_aiken
-from services.gift_parser import parse_gift
 
 UPLOAD_TEMP_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "temp")
 
@@ -40,9 +46,10 @@ class ImportService:
         ensure_temp_dir()
         ImportService.cleanup_expired_temp_files()
         
+        ALLOWED_IMPORT_EXTENSIONS = {"docx", "pdf", "tex", "latex"}
         file_ext = os.path.splitext(filename)[1].lower().lstrip(".")
-        if file_ext not in ("csv", "docx", "pdf", "aiken", "gift", "txt"):
-            raise ValueError(f"Định dạng file .{file_ext} không được hỗ trợ. Chỉ nhận CSV, DOCX, PDF, Aiken, GIFT.")
+        if file_ext not in ALLOWED_IMPORT_EXTENSIONS:
+            raise ValueError(f"Định dạng file .{file_ext} không được hỗ trợ. Chỉ nhận DOCX, PDF, LaTeX (.tex, .latex).")
 
         session_id = str(uuid.uuid4())
         safe_filename = f"{session_id}_{filename}"
@@ -65,26 +72,13 @@ class ImportService:
 
         try:
             # Parse based on file type
-            if file_ext == "csv":
-                raw_questions = parse_csv(temp_file_path)
-            elif file_ext == "docx":
+            if file_ext == "docx":
                 raw_questions = parse_docx(temp_file_path)
             elif file_ext == "pdf":
                 raw_questions = parse_pdf(temp_file_path)
-            elif file_ext == "aiken":
-                raw_questions = parse_aiken(temp_file_path)
-            elif file_ext == "gift":
-                raw_questions = parse_gift(temp_file_path)
-            elif file_ext == "txt":
-                # Detect whether txt is Aiken or GIFT
-                with open(temp_file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    txt_sample = f.read(1024)
-                if "ANSWER:" in txt_sample.upper():
-                    raw_questions = parse_aiken(temp_file_path)
-                elif "{" in txt_sample and "}" in txt_sample:
-                    raw_questions = parse_gift(temp_file_path)
-                else:
-                    raw_questions = parse_aiken(temp_file_path)
+            elif file_ext in ("tex", "latex"):
+                from services.latex_parser import parse_latex
+                raw_questions = parse_latex(temp_file_path)
             else:
                 raw_questions = []
 
@@ -159,6 +153,13 @@ class ImportService:
     def confirm_import(session_id, bank_id, user_id):
         """
         Confirm import: Write valid and warning questions to database inside a transaction.
+        
+        FormulaAsset handling:
+          - Deduplicate by content_hash (SHA-256).
+          - MathType formulas with metadata → conversion_status='converted', verification_status='verified'.
+          - MathType formulas without metadata → conversion_status='pending', verification_status='needs_review'.
+          - OMML formulas → conversion_status='converted', verification_status='verified'.
+          - Remap temp UUIDs → FormulaAsset.id in all text fields.
         """
         session = db.session.get(ImportSession, session_id)
         if not session:
@@ -180,6 +181,76 @@ class ImportService:
                 if q_data.get("status") == "error":
                     continue
 
+                # Process formulas and remap UUIDs → FormulaAsset IDs
+                uuid_map = {}
+                formulas_data = q_data.get("formulas", {})
+                for old_uuid, f_data in formulas_data.items():
+                    # Compute content_hash if not already present
+                    content_hash = f_data.get("content_hash")
+                    if not content_hash:
+                        # Generate hash from available data
+                        hash_source = f_data.get("latex") or f_data.get("mathml") or f_data.get("mtef_data") or old_uuid
+                        content_hash = hashlib.sha256(hash_source.encode("utf-8") if isinstance(hash_source, str) else hash_source).hexdigest()
+                        
+                    # Deduplicate by content_hash
+                    existing_asset = db.session.query(FormulaAsset).filter_by(content_hash=content_hash).first()
+                    if existing_asset:
+                        # A previous import may have created a pending asset
+                        # before SVG preview extraction was available. Enrich
+                        # it so every later bank/exam view can display the
+                        # formula immediately after confirmation.
+                        preview_url = f_data.get("preview_url")
+                        if preview_url and not existing_asset.svg_cache_key:
+                            existing_asset.svg_cache_key = preview_url
+
+                        incoming_status = f_data.get("conversion_status")
+                        if incoming_status == "converted":
+                            if f_data.get("mathml"):
+                                existing_asset.mathml = f_data["mathml"]
+                            if f_data.get("latex"):
+                                existing_asset.latex = f_data["latex"]
+                            existing_asset.conversion_status = "converted"
+                            if not f_data.get("needs_review", False):
+                                existing_asset.verification_status = "verified"
+                        uuid_map[old_uuid] = existing_asset.id
+                    else:
+                        # Determine conversion and verification status
+                        conversion_status = f_data.get("conversion_status", "pending")
+                        needs_review = f_data.get("needs_review", False)
+                        
+                        if conversion_status == "converted" and not needs_review:
+                            verification_status = "verified"
+                        elif needs_review:
+                            verification_status = "needs_review"
+                        else:
+                            verification_status = "needs_review"
+                        
+                        new_asset = FormulaAsset(
+                            content_hash=content_hash,
+                            mathml=f_data.get("mathml"),
+                            latex=f_data.get("latex"),
+                            mtef_data=f_data.get("mtef_data"),
+                            converter_name=f_data.get("converter_name"),
+                            converter_version=f_data.get("converter_version"),
+                            source_format=f_data.get("source_format"),
+                            parse_confidence=f_data.get("parse_confidence", 1.0),
+                            conversion_status=conversion_status,
+                            verification_status=verification_status,
+                            svg_cache_key=f_data.get("preview_url"),
+                        )
+                        
+                        db.session.add(new_asset)
+                        db.session.flush()  # get new_asset.id
+                        uuid_map[old_uuid] = new_asset.id
+
+                # Helper to remap UUIDs in text
+                def remap_text(text):
+                    if not text:
+                        return text
+                    for old_u, new_u in uuid_map.items():
+                        text = text.replace(f"[[formula:{old_u}]]", f"[[formula:{new_u}]]")
+                    return text
+
                 q_type = q_data.get("question_type", "single")
                 if q_type == "truefalse":
                     q_type = "true_false"
@@ -189,13 +260,13 @@ class ImportService:
 
                 bq = BankQuestion(
                     bank_id=bank.id,
-                    question_text=q_data["question_text"],
-                    context=q_data.get("context", ""),
+                    question_text=remap_text(q_data.get("question_text", "")),
+                    context=remap_text(q_data.get("context", "")),
                     image_url=q_data.get("image_url", ""),
                     question_type=q_type,
                     difficulty_level=q_data.get("difficulty_level", "nhan_biet"),
                     points=float(q_data.get("points", 1.0)),
-                    explanation=q_data.get("explanation", ""),
+                    explanation=remap_text(q_data.get("explanation", "")),
                     confidence_scores=conf_json,
                     subject=bank.subject,
                     grade=bank.grade,
@@ -203,13 +274,13 @@ class ImportService:
                     created_by=user_id
                 )
                 db.session.add(bq)
-                db.session.flush() # get bq.id
+                db.session.flush()  # get bq.id
 
                 # Save options (for single, multiple_choice, short_answer)
                 for idx, opt_data in enumerate(q_data.get("options", [])):
                     opt = BankQuestionOption(
                         question_id=bq.id,
-                        option_text=opt_data["text"],
+                        option_text=remap_text(opt_data["text"]),
                         is_correct=bool(opt_data.get("is_correct", False)),
                         order_index=idx
                     )
@@ -218,10 +289,11 @@ class ImportService:
                 # Save statements (for true_false)
                 for idx, stmt_data in enumerate(q_data.get("statements", [])):
                     stmt_label = stmt_data.get("id", chr(97 + idx))
-                    stmt_text = f"{stmt_label}) {stmt_data['text']}" if not stmt_data['text'].startswith(f"{stmt_label})") else stmt_data['text']
+                    stmt_text_raw = stmt_data['text']
+                    stmt_text = f"{stmt_label}) {stmt_text_raw}" if not stmt_text_raw.startswith(f"{stmt_label})") else stmt_text_raw
                     opt = BankQuestionOption(
                         question_id=bq.id,
-                        option_text=stmt_text,
+                        option_text=remap_text(stmt_text),
                         is_correct=bool(stmt_data.get("answer", False)),
                         order_index=idx
                     )
@@ -231,6 +303,9 @@ class ImportService:
 
             session.status = "confirmed"
             db.session.commit()
+
+            # Queue pending formula conversions (non-blocking)
+            ImportService._queue_pending_conversions()
 
             # Clean up temp file
             ImportService.cleanup_temp_file(session)
@@ -248,6 +323,50 @@ class ImportService:
             session.status = "failed"
             db.session.commit()
             raise e
+
+    @staticmethod
+    def _queue_pending_conversions():
+        """
+        Queue pending MathType formula conversions.
+        Called after successful import confirmation.
+        
+        In production: this would push jobs to a task queue (Celery, RQ, etc.)
+        For now: attempt conversion via worker client if available.
+        """
+        try:
+            from services.mathtype_converter import MathTypeWorkerClient
+            client = MathTypeWorkerClient()
+            
+            if not client.is_available:
+                # Worker not configured - assets stay pending
+                return
+            
+            pending_assets = db.session.query(FormulaAsset).filter_by(
+                conversion_status="pending",
+                source_format="MathType"
+            ).all()
+            
+            for asset in pending_assets:
+                if not asset.mtef_data:
+                    continue
+                try:
+                    result = client.convert(asset.mtef_data, asset.content_hash)
+                    if result.get("status") == "converted":
+                        asset.mathml = result.get("mathml")
+                        asset.latex = result.get("latex")
+                        asset.converter_name = result.get("converter_name")
+                        asset.converter_version = result.get("converter_version")
+                        asset.conversion_status = "converted"
+                        asset.verification_status = "verified"
+                        if result.get("svg_url"):
+                            asset.svg_cache_key = result.get("svg_url")
+                    # If still pending, leave as-is for retry
+                except Exception as e:
+                    print(f"[ImportService] Worker conversion error for {asset.id}: {e}")
+                    
+            db.session.commit()
+        except Exception as e:
+            print(f"[ImportService] Queue pending conversions error: {e}")
 
     @staticmethod
     def cancel_session(session_id):
@@ -315,14 +434,14 @@ class ImportService:
                     referenced_files.add(os.path.basename(bq.image_url))
                 for text_field in [bq.question_text, bq.explanation, bq.context]:
                     if text_field:
-                        for img_src in re.findall(r'/static/uploads/questions/([^\"\'\s>)]+)', text_field):
+                        for img_src in re.findall(r'/static/uploads/questions/([^\"\'\\s>)]+)', text_field):
                             referenced_files.add(os.path.basename(img_src))
                             
             for opt in db.session.query(BankQuestionOption).all():
                 if hasattr(opt, 'image_url') and opt.image_url:
                     referenced_files.add(os.path.basename(opt.image_url))
                 if opt.option_text:
-                    for img_src in re.findall(r'/static/uploads/questions/([^\"\'\s>)]+)', opt.option_text):
+                    for img_src in re.findall(r'/static/uploads/questions/([^\"\'\\s>)]+)', opt.option_text):
                         referenced_files.add(os.path.basename(img_src))
 
             # 2. Exam questions
@@ -331,7 +450,7 @@ class ImportService:
                     referenced_files.add(os.path.basename(eq.image_url))
                 for text_field in [eq.question_text, eq.explanation, eq.context]:
                     if text_field:
-                        for img_src in re.findall(r'/static/uploads/questions/([^\"\'\s>)]+)', text_field):
+                        for img_src in re.findall(r'/static/uploads/questions/([^\"\'\\s>)]+)', text_field):
                             referenced_files.add(os.path.basename(img_src))
 
             # 3. Active import sessions
@@ -341,7 +460,7 @@ class ImportService:
                         referenced_files.add(os.path.basename(q['image_url']))
                     for field in [q.get('question_text', ''), q.get('explanation', ''), q.get('context', '')]:
                         if field:
-                            for img_src in re.findall(r'/static/uploads/questions/([^\"\'\s>)]+)', field):
+                            for img_src in re.findall(r'/static/uploads/questions/([^\"\'\\s>)]+)', field):
                                 referenced_files.add(os.path.basename(img_src))
 
             # 4. Clean up unreferenced files in static/uploads/questions
